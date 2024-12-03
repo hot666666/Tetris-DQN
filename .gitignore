@@ -166,6 +166,8 @@ models/
 
 # log
 tensorboard/
+runs/
+wandb/
 
 # output
 output.mp4
