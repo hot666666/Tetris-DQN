@@ -171,7 +171,7 @@ def train(opt):
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
             print(
-                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon}")
+                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}")
             writer.add_scalar('train/TD_Loss', loss, global_step)
             writer.add_scalar(
                 "train/q_value", q_values.mean().item(), global_step)
