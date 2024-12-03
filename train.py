@@ -6,6 +6,7 @@ import time
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from tensorboardX import SummaryWriter
 
 from src.tetris import Tetris
@@ -33,9 +34,9 @@ def get_args():
 
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--exploration_fraction", type=float, default=0.25)
+    parser.add_argument("--exploration_fraction", type=float, default=0.5)
 
-    parser.add_argument("--train_freq", type=int, default=20)
+    parser.add_argument("--train_freq", type=int, default=4)
 
     parser.add_argument("--target_network", type=bool, default=True)
     parser.add_argument("--target_update_freq", type=int, default=2000)
@@ -44,7 +45,7 @@ def get_args():
     # 로깅 설정
     parser.add_argument("--exp_name", type=str,
                         default=os.path.basename(__file__)[: -len(".py")])
-    parser.add_argument("--save_interval", type=int, default=200)
+    parser.add_argument("--save_model_interval", type=int, default=200)
     parser.add_argument("--wandb", type=bool, default=True)
     parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
 
@@ -73,10 +74,12 @@ def train(opt):
     # Tensorboard
     writer = SummaryWriter(logdir="./runs")
 
-    # Model, Optimizer, LR scheduler, Loss function
+    # Model, Optimizer, LR scheduler
     model = DQN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
-    # scheduler =
+    # 총 업데이트 횟수의 20%를 T_max로 설정
+    T_max = int(0.2*(opt.total_steps//opt.update_frequency))
+    scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
 
     # Target model
     if opt.target_network:
@@ -129,7 +132,11 @@ def train(opt):
         # 상태 업데이트
         if not done:
             state = next_state.to(device)
+
         else:
+            print(
+                f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
+            writer.add_scalar("train/score", env.score, epoch)
             state = env.reset().to(device)
             epoch += 1
 
@@ -167,16 +174,14 @@ def train(opt):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        # scheduler.step()
+        scheduler.step()
 
         # Logging
         if global_step % 100 == 0:
             loss = loss.item()
             SPS = int(global_step / (time.time() - start_time))
             print(
-                f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            print(
-                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}")
+                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}, Bu")
             writer.add_scalar('train/TD_Loss', loss, global_step)
             writer.add_scalar(
                 "train/q_value", q_values.mean().item(), global_step)
@@ -200,7 +205,7 @@ def train(opt):
                 )
 
         # Model save
-        if epoch % opt.save_interval == 0 and opt.replay_memory_size == len(replay_memory):
+        if epoch % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
             model_path = f"{opt.saved_path}/tetris_{epoch}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
