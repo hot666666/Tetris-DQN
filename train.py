@@ -34,7 +34,8 @@ def get_args():
 
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--exploration_fraction", type=float, default=0.5)
+    parser.add_argument("--exploration_fraction", type=float,
+                        default=0.5)  # 50%의 학습 시간동안 epsilon을 감소
 
     parser.add_argument("--train_freq", type=int, default=4)
 
@@ -78,7 +79,7 @@ def train(opt):
     model = DQN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     # 총 업데이트 횟수의 20%를 T_max로 설정
-    T_max = int(0.2*(opt.total_steps//opt.update_frequency))
+    T_max = int(0.2*(opt.total_timesteps//opt.update_frequency))
     scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
 
     # Target model
