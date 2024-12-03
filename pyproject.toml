@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tetris-dqn"
+version = "0.1.0"
+description = ""
+authors = ["hot666666 <hotcs6@naver.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.10"
+torch = "^2.5.1"
+numpy = "^2.1.3"
+opencv-python = "^4.10.0.84"
+tensorboardx = "^2.6.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
