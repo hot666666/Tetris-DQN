@@ -79,7 +79,7 @@ def train(opt):
     model = DQN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     # 총 업데이트 횟수의 20%를 T_max로 설정
-    T_max = int(0.2*(opt.total_timesteps//opt.update_frequency))
+    T_max = int(0.2*(opt.total_timesteps//opt.train_freq))
     scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
 
     # Target model
