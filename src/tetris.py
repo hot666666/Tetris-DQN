@@ -72,7 +72,7 @@ class Tetris:
 
         return self.extract_board_features(self.board)
 
-    def step(self, action, render=True):
+    def step(self, action, render=False):
         """action(x, num_rotations)을 받아서 게임을 진행하고, 보상과 게임 종료 여부를 반환하는 메서드
             보드 상단(x, 0)에서 시작하는 블록이, 보드에 닿을 때까지 떨어지는 것을 구현"""
 
