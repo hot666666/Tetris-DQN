@@ -2,19 +2,18 @@ import argparse
 import os
 from collections import deque
 from random import random, randint, sample
-
+import time
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import CosineAnnealingLR
 from tensorboardX import SummaryWriter
 
 from src.tetris import Tetris
-from dqn import DQN
+from src.dqn import DQN
 
 
 def get_args():
-    parser = argparse.ArgumentParser("""Tetris2024 게임 환경 DQN 학습""")
+    parser = argparse.ArgumentParser("""Tetris 게임 환경 DQN 학습""")
 
     # 게임 환경 설정
     parser.add_argument("--width", type=int, default=10)
@@ -22,7 +21,7 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--num_epochs", type=int, default=5000)
+    parser.add_argument("--total_timesteps", type=int, default=5_000_000)
 
     parser.add_argument("--batch_size", type=int, default=512)
 
@@ -34,14 +33,16 @@ def get_args():
 
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--num_decay_epochs", type=int, default=2000)
+    parser.add_argument("--exploration_fraction", type=float, default=0.25)
+
+    parser.add_argument("--train_freq", type=int, default=20)
 
     parser.add_argument("--target_network", type=bool, default=False)
-    parser.add_argument("--target_update_freq", type=int, default=1000)
-    # parser.add_argument("--tau", type=float, default=0.005)
+    parser.add_argument("--target_update_freq", type=int, default=2000)
+    parser.add_argument("--tau", type=float, default=1.0)
 
     # 저장 및 로깅 설정
-    parser.add_argument("--save_interval", type=int, default=500)
+    parser.add_argument("--save_interval", type=int, default=200)
     parser.add_argument("--log_path", type=str, default="tensorboard")
     parser.add_argument("--saved_path", type=str, default="models")
 
@@ -49,19 +50,9 @@ def get_args():
     return args
 
 
-def epsilon_greedy_policy(predictions, num_actions, epsilon) -> int:
-    if random() <= epsilon:  # Exploration
-        return randint(0, num_actions - 1)
-    else:  # Exploitation
-        return torch.argmax(predictions).item()
-
-
-def set_dir(opt):
-    if not os.path.isdir(opt.saved_path):
-        os.makedirs(opt.saved_path)
-
-    if not os.path.isdir(opt.log_path):
-        os.makedirs(opt.log_path)
+def linear_schedule(start: float, end: float, duration: int, t: int):
+    slope = (end - start) / duration
+    return max(slope * t + start, end)
 
 
 def train(opt):
@@ -80,8 +71,7 @@ def train(opt):
     # Model, Optimizer, LR scheduler, Loss function
     model = DQN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
-    scheduler = CosineAnnealingLR(
-        optimizer, T_max=opt.replay_memory_size//opt.batch_size+1, eta_min=1e-5)
+    # scheduler =
 
     # Target model
     if opt.target_network:
@@ -97,49 +87,54 @@ def train(opt):
     replay_memory = deque(maxlen=opt.replay_memory_size)
     minimum_replay_memory_size = opt.replay_memory_size // 10
 
-    max_cleared_lines = 0
+    start_time = time.time()
 
-    # Epoch = 학습이 진행된 Episode
     epoch = 0
-    while epoch < opt.num_epochs:
-        # epsilon with linear decay
-        epsilon = opt.final_epsilon + (max(opt.num_decay_epochs - epoch, 0) * (
-            opt.initial_epsilon - opt.final_epsilon) / opt.num_decay_epochs)
+    global_step = 0
 
-        state = env.reset().to(device)
-        done = False
-        while not done:
-            # 현재 상태에서 가능한 모든 행동들과 다음 상태들을 가져옴
-            next_steps = env.get_next_states()
-            next_actions, next_states = zip(*next_steps.items())
+    state = env.reset().to(device)
+    while global_step < opt.total_timesteps:
+        epsilon = linear_schedule(
+            opt.initial_epsilon, opt.final_epsilon, opt.exploration_fraction * opt.total_timesteps, global_step)
 
-            # 다음 상태들에 대한 q-value를 계산하고, 이를 바탕으로 현재 상태에서 최적의 행동을 선택(또는 랜덤하게 행동을 선택)
-            next_states = torch.stack(next_states).to(device)
+        # 현재 상태에서 가능한 모든 행동들과 다음 상태들 가져오기
+        next_steps = env.get_next_states()
+        next_actions, next_states = zip(*next_steps.items())
+        next_states = torch.stack(next_states).to(device)
+
+        # Epsilon-greedy policy로 행동 선택
+        if random() <= epsilon:  # Exploration
+            index = randint(0, len(next_actions) - 1)
+            next_state = next_states[index, :]
+            action = next_actions[index]
+        else:  # Exploitation
             with torch.no_grad():
-                predictions = model(next_states)[:, 0]
-
-            # 행동 선택은 epsilon-greedy policy을 따름
-            index = epsilon_greedy_policy(
-                predictions, len(next_steps), epsilon)
+                preds = model(next_states)[:, 0]
+            index = torch.argmax(preds).item()
             next_state = next_states[index, :]
             action = next_actions[index]
 
-            # 환경과 상호작용
-            reward, done = env.step(action, render=False)
+        # 환경과 상호작용
+        reward, done = env.step(action)
+        global_step += 1
 
-            # Replay memory에 저장
-            replay_memory.append([state, reward, next_state, done])
+        # Replay memory에 저장
+        replay_memory.append([state, reward, next_state, done])
 
-            # 상태 업데이트
-            if not done:
-                state = next_state.to(device)
+        # 상태 업데이트
+        if not done:
+            state = next_state.to(device)
+        else:
+            state = env.reset().to(device)
+            epoch += 1
 
-        # Replay memory가 충분히 쌓여야 학습 시작
+        # Replay memory의 크기가 일정 이상이 되면 학습 시작
         if len(replay_memory) < max(opt.batch_size, minimum_replay_memory_size):
             continue
 
-        # 학습 시작
-        epoch += 1
+        # 학습 주기가 되어야 학습 시작
+        if global_step % opt.train_freq != 0:
+            continue
 
         # Batch sampling
         batch = sample(replay_memory, opt.batch_size)
@@ -152,10 +147,10 @@ def train(opt):
         next_state_batch = torch.stack(
             tuple(state for state in next_state_batch)).to(device)
 
-        # 현재 상태에서의 행동에 대한 q-value
+        # 기존 모델로 현재 상태에서 q-value 계산
         q_values = model(state_batch)
 
-        # 다음 상태에서의 q-value를 계산하고, target q-value를 계산
+        # 타겟 모델로 다음 상태에서의 q-value를 계산하고 reward를 더해 target q-value를 계산
         with torch.no_grad():
             next_q_values = target_model(next_state_batch)
             done_batch = torch.tensor(done_batch, dtype=torch.float32)[
@@ -163,24 +158,41 @@ def train(opt):
             target_q_values = reward_batch + opt.gamma * \
                 next_q_values * (1 - done_batch)
 
-        optimizer.zero_grad()
         loss = F.mse_loss(q_values, target_q_values)
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        scheduler.step()
-
-        # Target network 동기화
-        if opt.target_network and epoch % opt.target_update_freq == 0:
-            target_model.load_state_dict(model.state_dict())
+        # scheduler.step()
 
         # Logging
-        formatted_loss = float(f"{loss.item():.4f}")
-        print(
-            f"Epoch: {epoch}/{opt.num_epochs}, Loss: {formatted_loss}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-        writer.add_scalar('Train/Loss', formatted_loss, epoch)
-        writer.add_scalar('Train/Score', env.score, epoch)
-        writer.add_scalar('Train/Cleared lines', env.cleared_lines, epoch)
-        writer.add_scalar("Train/q_value", q_values.mean().item(), epoch)
+        if global_step % 100 == 0:
+            loss = loss.item()
+            SPS = int(global_step / (time.time() - start_time))
+            print(
+                f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
+            print(
+                f"Global step: {global_step}, Loss: {loss}, SPS: {SPS}, Epsilon: {epsilon}")
+            writer.add_scalar('train/TD_Loss', loss, global_step)
+            writer.add_scalar(
+                "train/q_value", q_values.mean().item(), global_step)
+            writer.add_scalar("train/target_q_value",
+                              target_q_values.mean().item(), global_step)
+            writer.add_scalar("schedule/epsilon", epsilon, global_step)
+            writer.add_scalar(
+                "charts/SPS",
+                SPS,
+                global_step,
+            )
+
+        # Target Model 동기화
+        if opt.target_network and global_step % opt.target_update_freq == 0:
+            for target_model_param, model_param in zip(
+                target_model.parameters(), model.parameters()
+            ):
+                target_model_param.data.copy_(
+                    opt.tau * model_param.data
+                    + (1.0 - opt.tau) * target_model_param.data
+                )
 
         # Model save
         if epoch % opt.save_interval == 0 and opt.replay_memory_size == len(replay_memory):
@@ -188,16 +200,16 @@ def train(opt):
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
 
-        if env.cleared_lines > 10000 and env.cleared_lines > max_cleared_lines:
-            max_cleared_lines = env.cleared_lines
-            torch.save(
-                model, f"{opt.saved_path}/tetris_best_{max_cleared_lines}")
-
     torch.save(model, f"{opt.saved_path}/tetris")
 
 
 if __name__ == "__main__":
     opt = get_args()
-    set_dir(opt)
+
+    if not os.path.isdir(opt.saved_path):
+        os.makedirs(opt.saved_path)
+
+    if not os.path.isdir(opt.log_path):
+        os.makedirs(opt.log_path)
 
     train(opt)
