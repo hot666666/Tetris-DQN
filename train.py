@@ -1,7 +1,7 @@
 import argparse
 import os
 from collections import deque
-from random import random, randint, sample
+from random import random, randint, sample, choice
 import time
 import numpy as np
 import torch
@@ -37,13 +37,18 @@ def get_args():
 
     parser.add_argument("--train_freq", type=int, default=20)
 
-    parser.add_argument("--target_network", type=bool, default=False)
+    parser.add_argument("--target_network", type=bool, default=True)
     parser.add_argument("--target_update_freq", type=int, default=2000)
     parser.add_argument("--tau", type=float, default=1.0)
 
-    # 저장 및 로깅 설정
+    # 로깅 설정
+    parser.add_argument("--exp_name", type=str,
+                        default=os.path.basename(__file__)[: -len(".py")])
     parser.add_argument("--save_interval", type=int, default=200)
-    parser.add_argument("--log_path", type=str, default="tensorboard")
+    parser.add_argument("--wandb", type=bool, default=True)
+    parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
+
+    # 모델 저장 경로
     parser.add_argument("--saved_path", type=str, default="models")
 
     args = parser.parse_args()
@@ -66,7 +71,7 @@ def train(opt):
         torch.manual_seed(42)
 
     # Tensorboard
-    writer = SummaryWriter(opt.log_path)
+    writer = SummaryWriter(logdir="./runs")
 
     # Model, Optimizer, LR scheduler, Loss function
     model = DQN().to(device)
@@ -209,7 +214,45 @@ if __name__ == "__main__":
     if not os.path.isdir(opt.saved_path):
         os.makedirs(opt.saved_path)
 
-    if not os.path.isdir(opt.log_path):
-        os.makedirs(opt.log_path)
+    greek_letters = [
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "epsilon",
+        "zeta",
+        "eta",
+        "theta",
+        "iota",
+        "kappa",
+        "lambda",
+        "mu",
+        "nu",
+        "xi",
+        "omicron",
+        "pi",
+        "rho",
+        "sigma",
+        "tau",
+        "upsilon",
+        "phi",
+        "chi",
+        "psi",
+        "omega",
+    ]
+    run_name = f"{opt.exp_name}/{choice(greek_letters)}_{choice(greek_letters)}__{int(time.time())}"
+
+    # TensorBoard 로그 디렉토리 경로 설정
+    os.environ["TENSORBOARD_LOGDIR"] = "./runs"
+
+    if opt.wandb:
+        import wandb
+
+        run = wandb.init(
+            project=opt.wandb_project_name,
+            sync_tensorboard=True,
+            config=vars(opt),
+            name=run_name,
+        )
 
     train(opt)
