@@ -70,6 +70,7 @@ def train(opt):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using Device: {device}")
+    print(f"opt: {opt.__dict__}")
 
     # Seed
     if torch.cuda.is_available():
@@ -240,6 +241,8 @@ if __name__ == "__main__":
 
     # TensorBoard 로그 디렉토리 경로 설정
     log_dir = os.path.join("./runs", run_name)
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
     os.environ["TENSORBOARD_LOGDIR"] = log_dir
 
     if opt.wandb:
