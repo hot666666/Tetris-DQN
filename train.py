@@ -6,7 +6,6 @@ import time
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import CosineAnnealingLR
 from tensorboardX import SummaryWriter
 
 from src.tetris import Tetris
@@ -22,20 +21,20 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--total_timesteps", type=int, default=5_000_000)
+    parser.add_argument("--total_timesteps", type=int, default=100_000)
 
-    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_size", type=int, default=32)
 
-    parser.add_argument("--replay_memory_size", type=int, default=30000)
+    parser.add_argument("--replay_memory_size", type=int, default=50000)
 
     parser.add_argument("--lr", type=float, default=1e-3)
 
     parser.add_argument("--gamma", type=float, default=0.99)
 
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
-    parser.add_argument("--final_epsilon", type=float, default=1e-3)
+    parser.add_argument("--final_epsilon", type=float, default=0.1)
     parser.add_argument("--exploration_fraction", type=float,
-                        default=0.5)  # 50%의 학습 시간동안 epsilon을 감소
+                        default=0.25)
 
     parser.add_argument("--train_freq", type=int, default=4)
 
@@ -61,8 +60,20 @@ def linear_schedule(start: float, end: float, duration: int, t: int):
     slope = (end - start) / duration
     return max(slope * t + start, end)
 
+# 입실론 스케줄 함수
+
+
+def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
+    if step < exploration_steps:
+        return initial_epsilon - (step / exploration_steps) * (initial_epsilon - final_epsilon)
+    else:
+        return final_epsilon
+
 
 def train(opt):
+    exploration_steps = int(opt.total_steps * 0.25)  # 입실론 감소 기간 (25% 스텝)
+    initial_exploration_steps = 5000     # 초기 탐험 스텝 (완전 탐험)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using Device: {device}")
 
@@ -77,10 +88,11 @@ def train(opt):
 
     # Model, Optimizer, LR scheduler
     model = DQN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
-    # 총 업데이트 횟수의 20%를 T_max로 설정
-    T_max = int(0.2*(opt.total_timesteps//opt.train_freq))
-    scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
+
+    # DQN
+    optimizer = torch.optim.RMSprop(
+        model.parameters(), lr=0.00025, alpha=0.95, eps=1e-6)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
 
     # Target model
     if opt.target_network:
@@ -94,7 +106,6 @@ def train(opt):
 
     # Replay memory
     replay_memory = deque(maxlen=opt.replay_memory_size)
-    minimum_replay_memory_size = opt.replay_memory_size // 10
 
     start_time = time.time()
 
@@ -103,8 +114,14 @@ def train(opt):
 
     state = env.reset().to(device)
     while global_step < opt.total_timesteps:
-        epsilon = linear_schedule(
-            opt.initial_epsilon, opt.final_epsilon, opt.exploration_fraction * opt.total_timesteps, global_step)
+        # epsilon = linear_schedule(
+        #     opt.initial_epsilon, opt.final_epsilon, opt.exploration_fraction * opt.total_timesteps, global_step)
+        # 입실론 값 계산
+        if global_step < initial_exploration_steps:
+            epsilon = 1.0  # 초기 탐험 단계에서는 고정
+        else:
+            epsilon = epsilon_schedule(
+                global_step, opt.initial_epsilon, opt.final_epsilon, exploration_steps)
 
         # 현재 상태에서 가능한 모든 행동들과 다음 상태들 가져오기
         next_steps = env.get_next_states()
@@ -137,12 +154,12 @@ def train(opt):
         else:
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            writer.add_scalar("train/score", env.score, epoch)
+            writer.add_scalar("epoch/score", env.score, epoch)
             state = env.reset().to(device)
             epoch += 1
 
         # Replay memory의 크기가 일정 이상이 되면 학습 시작
-        if len(replay_memory) < max(opt.batch_size, minimum_replay_memory_size):
+        if len(replay_memory) < opt.batch_size:
             continue
 
         # 학습 주기가 되어야 학습 시작
@@ -175,14 +192,13 @@ def train(opt):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        scheduler.step()
 
         # Logging
         if global_step % 100 == 0:
             loss = loss.item()
             SPS = int(global_step / (time.time() - start_time))
             print(
-                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}, Bu")
+                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}")
             writer.add_scalar('train/TD_Loss', loss, global_step)
             writer.add_scalar(
                 "train/q_value", q_values.mean().item(), global_step)
@@ -207,7 +223,7 @@ def train(opt):
 
         # Model save
         if epoch % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
-            model_path = f"{opt.saved_path}/tetris_{epoch}"
+            model_path = f"{opt.saved_path}/tetris_{global_step}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
 
