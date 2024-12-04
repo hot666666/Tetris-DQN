@@ -64,7 +64,7 @@ def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
         return final_epsilon
 
 
-def train(opt):
+def train(opt, log_dir):
     exploration_steps = int(opt.total_timesteps *
                             opt.exploration_fraction)  # 입실론 감소 기간 (25% 전체스텝)
 
@@ -79,7 +79,7 @@ def train(opt):
         torch.manual_seed(42)
 
     # Tensorboard
-    writer = SummaryWriter(logdir="./runs")
+    writer = SummaryWriter(logdir=log_dir)
 
     # Model, Optimizer, LR scheduler
     model = DQN().to(device)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             name=run_name,
         )
 
-    train(opt)
+    train(opt, log_dir)
 
     if opt.wandb:
         run.finish()
