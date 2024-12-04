@@ -1,7 +1,7 @@
 import argparse
 import os
 from collections import deque
-from random import random, randint, sample, choice
+from random import random, randint, sample
 import time
 import numpy as np
 import torch
@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--total_timesteps", type=int, default=200_000)
+    parser.add_argument("--total_timesteps", type=int, default=100_000)
 
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--replay_memory_size", type=int, default=50000)
@@ -39,7 +39,7 @@ def get_args():
     parser.add_argument("--train_freq", type=int, default=4)
 
     parser.add_argument("--target_network", type=bool, default=True)
-    parser.add_argument("--target_update_freq", type=int, default=1000)
+    parser.add_argument("--target_update_freq", type=int, default=2000)
     parser.add_argument("--tau", type=float, default=1.0)
 
     # 로깅 설정
@@ -50,7 +50,6 @@ def get_args():
 
     # 모델 저장
     parser.add_argument("--save_model_interval", type=int, default=10000)
-    parser.add_argument("--saved_path", type=str, default="models")
 
     args = parser.parse_args()
     return args
@@ -64,7 +63,7 @@ def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
         return final_epsilon
 
 
-def train(opt, log_dir):
+def train(opt, log_dir, run_name):
     exploration_steps = int(opt.total_timesteps *
                             opt.exploration_fraction)  # 입실론 감소 기간 (25% 전체스텝)
 
@@ -219,7 +218,7 @@ def train(opt, log_dir):
 
         # Model save
         if global_step % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
-            model_path = f"{opt.saved_path}/tetris_{global_step}"
+            model_path = f"models/{run_name}/tetris_{global_step}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
 
@@ -228,9 +227,6 @@ def train(opt, log_dir):
 
 if __name__ == "__main__":
     opt = get_args()
-
-    if not os.path.isdir(opt.saved_path):
-        os.makedirs(opt.saved_path)
 
     # batch_size = [32, 64, 128, 256, 512]
     # replay_memory_size = [30000, 50000]
@@ -245,6 +241,10 @@ if __name__ == "__main__":
         os.makedirs(log_dir)
     os.environ["TENSORBOARD_LOGDIR"] = log_dir
 
+    # Model 저장 디렉토리 경로 설정
+    if not os.path.isdir(f"./models/{run_name}"):
+        os.makedirs(f"./models/{run_name}")
+
     if opt.wandb:
         import wandb
 
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             name=run_name,
         )
 
-    train(opt, log_dir)
+    train(opt, log_dir, run_name)
 
     if opt.wandb:
         run.finish()
