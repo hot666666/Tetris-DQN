@@ -152,7 +152,7 @@ def train(opt, log_dir, run_name):
             epoch += 1
 
         # Replay memory의 크기가 일정 이상이 되면 학습 시작
-        if len(replay_memory) < opt.batch_size:
+        if len(replay_memory) < opt.batch_size or len(replay_memory) < opt.initial_exploration_steps:
             continue
 
         # 학습 주기가 되어야 학습 시작
