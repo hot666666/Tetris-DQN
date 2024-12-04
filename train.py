@@ -27,10 +27,11 @@ def get_args():
 
     parser.add_argument("--replay_memory_size", type=int, default=50000)
 
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=1e-4)
 
     parser.add_argument("--gamma", type=float, default=0.99)
 
+    parser.add_argument("--initial_exploration_steps", type=int, default=5000)
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=0.1)
     parser.add_argument("--exploration_fraction", type=float,
@@ -56,23 +57,17 @@ def get_args():
     return args
 
 
-def linear_schedule(start: float, end: float, duration: int, t: int):
-    slope = (end - start) / duration
-    return max(slope * t + start, end)
-
 # 입실론 스케줄 함수
-
-
 def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
-    if step < exploration_steps:
+    if step < exploration_steps:  # 초기 탐험 스텝 (완전 탐험)
         return initial_epsilon - (step / exploration_steps) * (initial_epsilon - final_epsilon)
     else:
         return final_epsilon
 
 
 def train(opt):
-    exploration_steps = int(opt.total_timesteps * 0.25)  # 입실론 감소 기간 (25% 스텝)
-    initial_exploration_steps = 5000     # 초기 탐험 스텝 (완전 탐험)
+    exploration_steps = int(opt.total_timesteps *
+                            opt.exploration_fraction)  # 입실론 감소 기간 (25% 전체스텝)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using Device: {device}")
@@ -91,8 +86,7 @@ def train(opt):
 
     # DQN
     optimizer = torch.optim.RMSprop(
-        model.parameters(), lr=0.00025, alpha=0.95, eps=1e-6)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
+        model.parameters(), lr=opt.lr, alpha=0.95, eps=1e-6)
 
     # Target model
     if opt.target_network:
@@ -114,10 +108,8 @@ def train(opt):
 
     state = env.reset().to(device)
     while global_step < opt.total_timesteps:
-        # epsilon = linear_schedule(
-        #     opt.initial_epsilon, opt.final_epsilon, opt.exploration_fraction * opt.total_timesteps, global_step)
         # 입실론 값 계산
-        if global_step < initial_exploration_steps:
+        if global_step < opt.initial_exploration_steps:
             epsilon = 1.0  # 초기 탐험 단계에서는 고정
         else:
             epsilon = epsilon_schedule(
@@ -154,7 +146,9 @@ def train(opt):
         else:
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            writer.add_scalar("charts/score", env.score, global_step)
+            writer.add_scalar("epoch/score", env.score, global_step)
+            writer.add_scalar("epoch/cleared_lines",
+                              env.cleared_lines, global_step)
             state = env.reset().to(device)
             epoch += 1
 
