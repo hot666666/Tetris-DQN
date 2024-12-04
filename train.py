@@ -71,7 +71,7 @@ def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
 
 
 def train(opt):
-    exploration_steps = int(opt.total_steps * 0.25)  # 입실론 감소 기간 (25% 스텝)
+    exploration_steps = int(opt.total_timesteps * 0.25)  # 입실론 감소 기간 (25% 스텝)
     initial_exploration_steps = 5000     # 초기 탐험 스텝 (완전 탐험)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
