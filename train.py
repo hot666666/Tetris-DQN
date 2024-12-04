@@ -21,10 +21,9 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--total_timesteps", type=int, default=100_000)
+    parser.add_argument("--total_timesteps", type=int, default=200_000)
 
     parser.add_argument("--batch_size", type=int, default=32)
-
     parser.add_argument("--replay_memory_size", type=int, default=50000)
 
     parser.add_argument("--lr", type=float, default=1e-4)
@@ -232,36 +231,16 @@ if __name__ == "__main__":
     if not os.path.isdir(opt.saved_path):
         os.makedirs(opt.saved_path)
 
-    greek_letters = [
-        "alpha",
-        "beta",
-        "gamma",
-        "delta",
-        "epsilon",
-        "zeta",
-        "eta",
-        "theta",
-        "iota",
-        "kappa",
-        "lambda",
-        "mu",
-        "nu",
-        "xi",
-        "omicron",
-        "pi",
-        "rho",
-        "sigma",
-        "tau",
-        "upsilon",
-        "phi",
-        "chi",
-        "psi",
-        "omega",
-    ]
-    run_name = f"{opt.exp_name}/{choice(greek_letters)}_{choice(greek_letters)}__{int(time.time())}"
+    # batch_size = [32, 64, 128, 256, 512]
+    # replay_memory_size = [30000, 50000]
+    # lr = [0.00025, 0.0001]
+    # target_update_freq = [1000, 2000]
+
+    run_name = f"{opt.exp_name}/{opt.batch_size}_{opt.replay_memory_size}_{opt.lr}_{opt.target_update_freq}__{int(time.time())}"
 
     # TensorBoard 로그 디렉토리 경로 설정
-    os.environ["TENSORBOARD_LOGDIR"] = "./runs"
+    log_dir = os.path.join("./runs", run_name)
+    os.environ["TENSORBOARD_LOGDIR"] = log_dir
 
     if opt.wandb:
         import wandb
@@ -274,3 +253,6 @@ if __name__ == "__main__":
         )
 
     train(opt)
+
+    if opt.wandb:
+        run.finish()
