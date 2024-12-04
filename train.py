@@ -39,17 +39,17 @@ def get_args():
     parser.add_argument("--train_freq", type=int, default=4)
 
     parser.add_argument("--target_network", type=bool, default=True)
-    parser.add_argument("--target_update_freq", type=int, default=2000)
+    parser.add_argument("--target_update_freq", type=int, default=1000)
     parser.add_argument("--tau", type=float, default=1.0)
 
     # 로깅 설정
     parser.add_argument("--exp_name", type=str,
                         default=os.path.basename(__file__)[: -len(".py")])
-    parser.add_argument("--save_model_interval", type=int, default=200)
     parser.add_argument("--wandb", type=bool, default=True)
     parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
 
-    # 모델 저장 경로
+    # 모델 저장
+    parser.add_argument("--save_model_interval", type=int, default=10000)
     parser.add_argument("--saved_path", type=str, default="models")
 
     args = parser.parse_args()
@@ -154,7 +154,7 @@ def train(opt):
         else:
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            writer.add_scalar("epoch/score", env.score, epoch)
+            writer.add_scalar("charts/score", env.score, global_step)
             state = env.reset().to(device)
             epoch += 1
 
@@ -191,6 +191,8 @@ def train(opt):
         loss = F.mse_loss(q_values, target_q_values)
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(), max_norm=1)  # 그레이디언트 클리핑
         optimizer.step()
 
         # Logging
@@ -199,7 +201,7 @@ def train(opt):
             SPS = int(global_step / (time.time() - start_time))
             print(
                 f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}")
-            writer.add_scalar('train/TD_Loss', loss, global_step)
+            writer.add_scalar('train/td_loss', loss, global_step)
             writer.add_scalar(
                 "train/q_value", q_values.mean().item(), global_step)
             writer.add_scalar("train/target_q_value",
@@ -222,7 +224,7 @@ def train(opt):
                 )
 
         # Model save
-        if epoch % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
+        if global_step % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
             model_path = f"{opt.saved_path}/tetris_{global_step}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
