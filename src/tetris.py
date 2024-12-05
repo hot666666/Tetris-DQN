@@ -87,16 +87,16 @@ class Tetris:
             if render:
                 self.render()
 
+        reward = 0
         overflow = self.truncate_overflow_piece(self.piece, self.current_pos)
         if overflow:
             self.gameover = True
-            self.score -= 17
+            reward -= 50
 
         self.board = self.get_board_with_piece(self.piece, self.current_pos)
-        lines_cleared, self.board = self.clear_full_rows(
-            self.board)
+        lines_cleared, self.board = self.clear_full_rows(self.board)
 
-        reward = self.get_reward(lines_cleared)
+        reward += self.get_reward(lines_cleared)
 
         self.score += reward
         self.cleared_lines += lines_cleared
@@ -104,7 +104,7 @@ class Tetris:
         if not self.gameover:
             self.spawn_next_piece()
 
-        return reward / 10, self.gameover
+        return reward, self.gameover
 
     def get_next_states(self):
         """현재 상태에서 가능한 모든 열(x)에서 가능한 모든 회전(num_rotations)에 대한 다음 상태를 반환하는 메서드
