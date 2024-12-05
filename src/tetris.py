@@ -90,7 +90,7 @@ class Tetris:
         overflow = self.truncate_overflow_piece(self.piece, self.current_pos)
         if overflow:
             self.gameover = True
-            self.score -= 50
+            self.score -= 17
 
         self.board = self.get_board_with_piece(self.piece, self.current_pos)
         lines_cleared, self.board = self.clear_full_rows(
