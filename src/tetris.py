@@ -209,7 +209,7 @@ class Tetris:
 
     def get_reward(self, lines_cleared):
         """지워진 줄 수에 대한 보상을 반환하는 메서드"""
-        return 1 + (lines_cleared ** 2) * self.width
+        return (lines_cleared ** 2) * self.width
 
 ##################################################
 
