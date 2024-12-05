@@ -7,7 +7,7 @@ from src.tetris import Tetris
 
 
 def get_args():
-    parser = argparse.ArgumentParser("""Tetris2024 게임 환경 DQN 테스트""")
+    parser = argparse.ArgumentParser("""Tetris 게임 환경 DQN 테스트""")
     parser.add_argument("--width", type=int, default=10,
                         help="The common width for all images")
     parser.add_argument("--height", type=int, default=20,
@@ -19,7 +19,7 @@ def get_args():
     parser.add_argument("--model_dir", type=str,
                         default=f"models")
     parser.add_argument("--model_name", type=str,
-                        default=f"tetris_best_54088")
+                        default=f"tetris_470000")
     parser.add_argument("--output", type=str, default="output.mp4")
     parser.add_argument("--record", type=bool, default=False)
 
