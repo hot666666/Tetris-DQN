@@ -91,7 +91,7 @@ class Tetris:
         overflow = self.truncate_overflow_piece(self.piece, self.current_pos)
         if overflow:
             self.gameover = True
-            reward -= 50
+            reward -= 20
 
         self.board = self.get_board_with_piece(self.piece, self.current_pos)
         lines_cleared, self.board = self.clear_full_rows(self.board)
@@ -209,7 +209,7 @@ class Tetris:
 
     def get_reward(self, lines_cleared):
         """지워진 줄 수에 대한 보상을 반환하는 메서드"""
-        return (lines_cleared ** 2) * self.width
+        return 1+(lines_cleared ** 2) * self.width
 
 ##################################################
 
