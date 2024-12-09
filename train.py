@@ -67,6 +67,7 @@ def train(opt, log_dir, run_name):
     print(f"opt: {opt.__dict__}")
 
     minimum_replay_memory_size = opt.replay_memory_size // 10
+    decay_epsilon_duration = int(opt.num_epochs * 0.2)
 
     # Seed
     if torch.cuda.is_available():
@@ -102,7 +103,7 @@ def train(opt, log_dir, run_name):
             epsilon = 1.0
         else:
             epsilon = epsilon_schedule(
-                epoch - opt.num_decay_epochs, opt.initial_epsilon, opt.final_epsilon, opt.num_decay_epochs)
+                epoch - opt.num_decay_epochs, opt.initial_epsilon, opt.final_epsilon, decay_epsilon_duration)
 
         state = env.reset().to(device)
         done = False
