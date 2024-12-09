@@ -35,11 +35,10 @@ def get_args():
 
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--num_decay_epochs", type=int, default=1000)
+    parser.add_argument("--num_decay_epochs", type=int, default=2000)
 
     parser.add_argument("--target_network", type=bool, default=False)
     parser.add_argument("--target_update_freq", type=int, default=20)
-
     parser.add_argument("--train_freq", type=int, default=1)
 
     # 로깅 설정
@@ -99,11 +98,13 @@ def train(opt, log_dir, run_name):
     max_cleared_lines = 10
     epoch = 0
     while epoch < opt.num_epochs:
-        if epoch < opt.num_decay_epochs:
-            epsilon = 1.0
-        else:
-            epsilon = epsilon_schedule(
-                epoch - opt.num_decay_epochs, opt.initial_epsilon, opt.final_epsilon, decay_epsilon_duration)
+        # if epoch < opt.num_decay_epochs:
+        #     epsilon = 1.0
+        # else:
+        #     epsilon = epsilon_schedule(
+        #         epoch - opt.num_decay_epochs, opt.initial_epsilon, opt.final_epsilon, decay_epsilon_duration)
+        epsilon = opt.final_epsilon + (max(opt.num_decay_epochs - epoch, 0) * (
+            opt.initial_epsilon - opt.final_epsilon) / opt.num_decay_epochs)
 
         state = env.reset().to(device)
         done = False
