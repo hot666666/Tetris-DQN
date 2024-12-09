@@ -79,9 +79,8 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer
     model = DQN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
-    # optimizer = torch.optim.RMSprop(
-    #     model.parameters(), lr=opt.lr, alpha=0.95, eps=1e-6)
+    torch.optim.Adam(model.parameters(), lr=opt.lr)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=opt.lr)
 
     # Target model
     if opt.target_network:
