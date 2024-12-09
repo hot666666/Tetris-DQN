@@ -79,8 +79,9 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer
     model = DQN().to(device)
-    optimizer = torch.optim.RMSprop(
-        model.parameters(), lr=opt.lr, alpha=0.95, eps=1e-6)
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
+    # optimizer = torch.optim.RMSprop(
+    #     model.parameters(), lr=opt.lr, alpha=0.95, eps=1e-6)
 
     # Target model
     if opt.target_network:
@@ -96,7 +97,6 @@ def train(opt, log_dir, run_name):
     replay_memory = deque(maxlen=opt.replay_memory_size)
 
     max_cleared_lines = 10
-
     epoch = 0
     while epoch < opt.num_epochs:
         if epoch < opt.num_decay_epochs:
