@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--total_timesteps", type=int, default=50_000)
+    parser.add_argument("--total_timesteps", type=int, default=500_000)
 
     parser.add_argument("--batch_size", type=int, default=512)
 
@@ -31,14 +31,14 @@ def get_args():
 
     parser.add_argument("--gamma", type=float, default=0.99)
 
-    parser.add_argument("--initial_exploration_steps", type=int, default=2000)
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
     parser.add_argument("--exploration_fraction", type=float,
-                        default=0.2)
+                        default=0.4)
 
     parser.add_argument("--train_freq", type=int, default=4)
 
+    # 타겟 네트워크 설정(time-step 단위)
     parser.add_argument("--target_network", type=bool, default=True)
     parser.add_argument("--target_update_freq", type=int, default=1000)
 
@@ -83,7 +83,7 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer, LR scheduler
     model = DQN().to(device)
-    optimizer = torch.optim.RMSprop(model.parameters())
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=opt.lr)
     loss_fn = F.mse_loss
 
     # Target model
@@ -106,12 +106,8 @@ def train(opt, log_dir, run_name):
 
     state = env.reset().to(device)
     while global_step < opt.total_timesteps:
-        # 입실론 값 계산
-        if global_step < opt.initial_exploration_steps:
-            epsilon = 1.0
-        else:
-            epsilon = epsilon_schedule(
-                global_step, opt.initial_epsilon, opt.final_epsilon, exploration_steps)
+        epsilon = epsilon_schedule(
+            global_step, opt.initial_epsilon, opt.final_epsilon, exploration_steps)
 
         # 현재 상태에서 가능한 모든 행동들과 다음 상태들 가져오기
         next_steps = env.get_next_states()
@@ -158,7 +154,7 @@ def train(opt, log_dir, run_name):
         if global_step % opt.train_freq != 0:
             continue
 
-        # Batch sampling
+        # 배치 샘플링
         batch = sample(replay_memory, opt.batch_size)
         state_batch, reward_batch, next_state_batch, done_batch = zip(
             *batch)
