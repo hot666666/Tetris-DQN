@@ -103,6 +103,7 @@ def train(opt, log_dir, run_name):
 
     epoch = 0
     global_step = 0
+    max_cleared_lines = 10
 
     state = env.reset().to(device)
     while global_step < opt.total_timesteps:
@@ -196,6 +197,14 @@ def train(opt, log_dir, run_name):
         # Target Model 동기화
         if opt.target_network and global_step % opt.target_update_freq == 0:
             target_model.load_state_dict(model.state_dict())
+
+        # Best model save
+        if env.cleared_lines > max_cleared_lines:
+            max_cleared_lines = env.cleared_lines
+            model_path = f"models/{run_name}/tetris_best_{max_cleared_lines}"
+            torch.save(model, model_path)
+            print(f"Best Model saved at {model_path}")
+            continue
 
         # Model save
         if global_step % opt.save_model_interval == 0:
