@@ -182,10 +182,17 @@ def train(opt, log_dir, run_name):
                           target_q_values.mean().item(), epoch)
         writer.add_scalar("schedule/epsilon", epsilon, epoch)
 
-        # Model save
-        if (epoch > opt.num_decay_epochs and epoch % opt.save_interval) or max_cleared_lines < env.cleared_lines:
+        # Best model save
+        if env.cleared_lines > max_cleared_lines:
             max_cleared_lines = env.cleared_lines
             model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
+            torch.save(model, model_path)
+            print(f"Best model saved at {model_path}")
+            continue
+
+        # Model save
+        if epoch > opt.num_decay_epochs and epoch % opt.save_interval:
+            model_path = f"models/{run_name}/tetris_{epoch}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
 
