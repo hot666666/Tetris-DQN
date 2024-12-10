@@ -44,7 +44,8 @@ def get_args():
 
     # 로깅 설정
     parser.add_argument("--wandb", type=bool, default=True)
-    parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
+    parser.add_argument("--wandb_project_name",
+                        type=str, default="Tetris-DQN2")
     parser.add_argument("--exp_name", type=str,
                         default=os.path.basename(__file__)[: -len(".py")])
 
@@ -143,9 +144,9 @@ def train(opt, log_dir, run_name):
         else:
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            writer.add_scalar("epoch/score", env.score, epoch)
+            writer.add_scalar("epoch/score", env.score, global_step)
             writer.add_scalar("epoch/cleared_lines",
-                              env.cleared_lines, epoch)
+                              env.cleared_lines, global_step)
             state = env.reset().to(device)
             epoch += 1
 
