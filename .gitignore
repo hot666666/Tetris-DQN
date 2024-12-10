@@ -168,4 +168,4 @@ models/
 runs/
 
 # output
-output.mp4
+output*.mp4

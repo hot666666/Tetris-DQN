@@ -2,6 +2,7 @@ import argparse
 
 import torch
 import cv2
+import time
 
 from src.tetris import Tetris
 
@@ -14,14 +15,15 @@ def get_args():
                         help="The common height for all images")
     parser.add_argument("--block_size", type=int,
                         default=30, help="Size of a block")
-    parser.add_argument("--fps", type=int, default=300,
+    parser.add_argument("--fps", type=int, default=60,
                         help="frames per second")
     parser.add_argument("--model_dir", type=str,
                         default=f"models")
     parser.add_argument("--model_name", type=str,
                         default=f"tetris_best_54088")
-    parser.add_argument("--output", type=str, default="output.mp4")
-    parser.add_argument("--record", type=bool, default=False)
+    parser.add_argument("--output", type=str,
+                        default=f"output_{time.time()}.mp4")
+    parser.add_argument("--record", type=bool, default=True)
 
     args = parser.parse_args()
     return args
@@ -38,8 +40,8 @@ def test(opt):
 
     out = None
     if opt.record:
-        out = cv2.VideoWriter(opt.output, cv2.VideoWriter_fourcc(*"MJPG"), opt.fps,
-                              (int(opt.width*opt.block_size), int(1.25*opt.height*opt.block_size)))
+        out = cv2.VideoWriter(opt.output, cv2.VideoWriter_fourcc(*"mp4v"), opt.fps,
+                              (int(opt.width*opt.block_size), int((opt.height+2)*opt.block_size)))
 
     model = torch.load(model_path, map_location=device).eval()
 
@@ -63,7 +65,7 @@ def test(opt):
             index = torch.argmax(predictions).item()
             action = next_actions[index]
 
-            _, done = env.step(action, render=True)
+            _, done = env.step(action, render=True, video=out)
 
     except Exception as e:
         print("Error occurred", e)
