@@ -57,10 +57,13 @@ def get_args():
 
 # 입실론 스케줄 함수
 def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
-    if step < exploration_steps:  # 초기 탐험 스텝 (완전 탐험)
-        return initial_epsilon - (step / exploration_steps) * (initial_epsilon - final_epsilon)
+    # 선형적으로 감소
+    if step < exploration_steps:
+        epsilon = initial_epsilon - \
+            (initial_epsilon - final_epsilon) * (step / exploration_steps)
     else:
-        return final_epsilon
+        epsilon = final_epsilon
+    return epsilon
 
 
 def train(opt, log_dir, run_name):
