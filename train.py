@@ -21,35 +21,35 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30)
 
     # 하이퍼파라미터 설정
-    parser.add_argument("--total_timesteps", type=int, default=100_000)
+    parser.add_argument("--total_timesteps", type=int, default=50_000)
 
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--replay_memory_size", type=int, default=50000)
+    parser.add_argument("--batch_size", type=int, default=512)
+
+    parser.add_argument("--replay_memory_size", type=int, default=30000)
 
     parser.add_argument("--lr", type=float, default=1e-4)
 
     parser.add_argument("--gamma", type=float, default=0.99)
 
-    parser.add_argument("--initial_exploration_steps", type=int, default=5000)
+    parser.add_argument("--initial_exploration_steps", type=int, default=2000)
     parser.add_argument("--initial_epsilon", type=float, default=1.0)
-    parser.add_argument("--final_epsilon", type=float, default=0.1)
+    parser.add_argument("--final_epsilon", type=float, default=1e-3)
     parser.add_argument("--exploration_fraction", type=float,
-                        default=0.25)
+                        default=0.2)
 
     parser.add_argument("--train_freq", type=int, default=4)
 
     parser.add_argument("--target_network", type=bool, default=True)
-    parser.add_argument("--target_update_freq", type=int, default=2000)
-    parser.add_argument("--tau", type=float, default=1.0)
+    parser.add_argument("--target_update_freq", type=int, default=1000)
 
     # 로깅 설정
-    parser.add_argument("--exp_name", type=str,
-                        default=os.path.basename(__file__)[: -len(".py")])
     parser.add_argument("--wandb", type=bool, default=True)
     parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
+    parser.add_argument("--exp_name", type=str,
+                        default=os.path.basename(__file__)[: -len(".py")])
 
     # 모델 저장
-    parser.add_argument("--save_model_interval", type=int, default=10000)
+    parser.add_argument("--save_model_interval", type=int, default=2000)
 
     args = parser.parse_args()
     return args
@@ -64,9 +64,6 @@ def epsilon_schedule(step, initial_epsilon, final_epsilon, exploration_steps):
 
 
 def train(opt, log_dir, run_name):
-    exploration_steps = int(opt.total_timesteps *
-                            opt.exploration_fraction)  # 입실론 감소 기간 (25% 전체스텝)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using Device: {device}")
     print(f"opt: {opt.__dict__}")
@@ -82,10 +79,8 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer, LR scheduler
     model = DQN().to(device)
-
-    # DQN
-    optimizer = torch.optim.RMSprop(
-        model.parameters(), lr=opt.lr, alpha=0.95, eps=1e-6)
+    optimizer = torch.optim.RMSprop(model.parameters())
+    loss_fn = F.mse_loss
 
     # Target model
     if opt.target_network:
@@ -100,7 +95,7 @@ def train(opt, log_dir, run_name):
     # Replay memory
     replay_memory = deque(maxlen=opt.replay_memory_size)
 
-    start_time = time.time()
+    exploration_steps = int(opt.total_timesteps * opt.exploration_fraction)
 
     epoch = 0
     global_step = 0
@@ -109,7 +104,7 @@ def train(opt, log_dir, run_name):
     while global_step < opt.total_timesteps:
         # 입실론 값 계산
         if global_step < opt.initial_exploration_steps:
-            epsilon = 1.0  # 초기 탐험 단계에서는 고정
+            epsilon = 1.0
         else:
             epsilon = epsilon_schedule(
                 global_step, opt.initial_epsilon, opt.final_epsilon, exploration_steps)
@@ -136,23 +131,23 @@ def train(opt, log_dir, run_name):
         global_step += 1
 
         # Replay memory에 저장
+        next_state = next_state.to(device)
         replay_memory.append([state, reward, next_state, done])
 
         # 상태 업데이트
         if not done:
-            state = next_state.to(device)
-
+            state = next_state
         else:
             print(
                 f"Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
-            writer.add_scalar("epoch/score", env.score, global_step)
+            writer.add_scalar("epoch/score", env.score, epoch)
             writer.add_scalar("epoch/cleared_lines",
-                              env.cleared_lines, global_step)
+                              env.cleared_lines, epoch)
             state = env.reset().to(device)
             epoch += 1
 
         # Replay memory의 크기가 일정 이상이 되면 학습 시작
-        if len(replay_memory) < opt.batch_size or len(replay_memory) < opt.initial_exploration_steps:
+        if len(replay_memory) < opt.batch_size:
             continue
 
         # 학습 주기가 되어야 학습 시작
@@ -181,30 +176,22 @@ def train(opt, log_dir, run_name):
             target_q_values = reward_batch + opt.gamma * \
                 next_q_values * (1 - done_batch)
 
-        loss = F.mse_loss(q_values, target_q_values)
+        loss = loss_fn(q_values, target_q_values)
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(
-            model.parameters(), max_norm=1)  # 그레이디언트 클리핑
         optimizer.step()
 
         # Logging
-        if global_step % 100 == 0:
+        if global_step % 1000 == 0:
             loss = loss.item()
-            SPS = int(global_step / (time.time() - start_time))
             print(
-                f"Global step: {global_step}, Loss: {loss:.4f}, SPS: {SPS}, Epsilon: {epsilon:.2f}")
+                f"Global step: {global_step}, Loss: {loss:.4f}, Epsilon: {epsilon:.2f}")
             writer.add_scalar('train/td_loss', loss, global_step)
             writer.add_scalar(
                 "train/q_value", q_values.mean().item(), global_step)
             writer.add_scalar("train/target_q_value",
                               target_q_values.mean().item(), global_step)
             writer.add_scalar("schedule/epsilon", epsilon, global_step)
-            writer.add_scalar(
-                "charts/SPS",
-                SPS,
-                global_step,
-            )
 
         # Target Model 동기화
         if opt.target_network and global_step % opt.target_update_freq == 0:
@@ -217,7 +204,7 @@ def train(opt, log_dir, run_name):
                 )
 
         # Model save
-        if global_step % opt.save_model_interval == 0 and opt.replay_memory_size == len(replay_memory):
+        if global_step % opt.save_model_interval == 0:
             model_path = f"models/{run_name}/tetris_{global_step}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
@@ -227,11 +214,6 @@ def train(opt, log_dir, run_name):
 
 if __name__ == "__main__":
     opt = get_args()
-
-    # batch_size = [32, 64, 128, 256, 512]
-    # replay_memory_size = [30000, 50000]
-    # lr = [0.00025, 0.0001]
-    # target_update_freq = [1000, 2000]
 
     run_name = f"{opt.exp_name}/{opt.batch_size}_{opt.replay_memory_size}_{opt.lr}_{opt.target_update_freq}__{int(time.time())}"
 

@@ -170,4 +170,4 @@ runs/
 wandb/
 
 # output
-output.mp4
+output*.mp4
