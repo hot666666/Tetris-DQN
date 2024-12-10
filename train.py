@@ -38,13 +38,12 @@ def get_args():
     # DQN 설정
     parser.add_argument("--target_network", type=bool, default=False)
     parser.add_argument("--target_update_freq", type=int, default=20)
-    parser.add_argument("--train_freq", type=int, default=1)
 
     # 로깅 설정
-    parser.add_argument("--exp_name", type=str,
-                        default=os.path.basename(__file__)[: -len(".py")])
     parser.add_argument("--wandb", type=bool, default=False)
     parser.add_argument("--wandb_project_name", type=str, default="Tetris-DQN")
+    parser.add_argument("--exp_name", type=str,
+                        default=os.path.basename(__file__)[: -len(".py")])
 
     # 모델 저장
     parser.add_argument("--save_interval", type=int, default=200)
@@ -75,7 +74,8 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer, Loss function
     model = DQN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=opt.lr)
     loss_fn = F.mse_loss
 
     # Target model
@@ -120,14 +120,12 @@ def train(opt, log_dir, run_name):
             # 환경과 상호작용
             reward, done = env.step(action)
 
+            # 다음 상태를 device에 배치 후, Replay memory에 저장
             next_state = next_state.to(device)
-
-            # Replay memory에 저장
             replay_memory.append([state, reward, next_state, done])
 
             if not done:
                 state = next_state
-                continue
             else:
                 print(
                     f"# Epoch: {epoch}, Score: {env.score}, Cleared lines: {env.cleared_lines}")
@@ -135,13 +133,11 @@ def train(opt, log_dir, run_name):
                     writer.add_scalar("epoch/score", env.score, epoch)
                     writer.add_scalar("epoch/cleared_lines",
                                       env.cleared_lines, epoch)
+                    writer.add_scalar("epoch/memory_size",
+                                      len(replay_memory), epoch)
 
         # Replay memory가 충분히 쌓여야 학습 시작
         if len(replay_memory) < opt.replay_memory_size // 10:
-            continue
-
-        # 학습 주기가 되어야 학습 시작
-        if epoch % opt.train_freq != 0:
             continue
 
         # 학습 시작
