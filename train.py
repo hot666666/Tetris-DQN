@@ -48,6 +48,7 @@ def get_args():
                         type=str, default="Tetris-DQN")
     parser.add_argument("--exp_name", type=str,
                         default=os.path.basename(__file__)[: -len(".py")])
+    parser.add_argument("--log_interval", type=int, default=1000)
 
     # 모델 저장
     parser.add_argument("--save_model_interval", type=int, default=2000)
@@ -183,7 +184,7 @@ def train(opt, log_dir, run_name):
         optimizer.step()
 
         # Logging
-        if global_step % 1000 == 0:
+        if global_step % opt.log_interval == 0:
             loss = loss.item()
             print(
                 f"Global step: {global_step}, Loss: {loss:.4f}, Epsilon: {epsilon:.2f}")
