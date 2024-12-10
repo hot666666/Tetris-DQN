@@ -74,8 +74,7 @@ def train(opt, log_dir, run_name):
 
     # Model, Optimizer, Loss function
     model = DQN().to(device)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=opt.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     loss_fn = F.mse_loss
 
     # Target model
@@ -167,6 +166,7 @@ def train(opt, log_dir, run_name):
         optimizer.zero_grad()
         loss = loss_fn(q_values, target_q_values)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
         # Logging
@@ -220,6 +220,5 @@ if __name__ == "__main__":
         )
 
     train(opt, log_dir, run_name)
-
     if opt.wandb:
         run.finish()
