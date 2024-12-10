@@ -195,13 +195,7 @@ def train(opt, log_dir, run_name):
 
         # Target Model 동기화
         if opt.target_network and global_step % opt.target_update_freq == 0:
-            for target_model_param, model_param in zip(
-                target_model.parameters(), model.parameters()
-            ):
-                target_model_param.data.copy_(
-                    opt.tau * model_param.data
-                    + (1.0 - opt.tau) * target_model_param.data
-                )
+            target_model.load_state_dict(model.state_dict())
 
         # Model save
         if global_step % opt.save_model_interval == 0:
