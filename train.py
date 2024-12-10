@@ -45,7 +45,7 @@ def get_args():
     # 로깅 설정
     parser.add_argument("--wandb", type=bool, default=True)
     parser.add_argument("--wandb_project_name",
-                        type=str, default="Tetris-DQN2")
+                        type=str, default="Tetris-DQN")
     parser.add_argument("--exp_name", type=str,
                         default=os.path.basename(__file__)[: -len(".py")])
 
