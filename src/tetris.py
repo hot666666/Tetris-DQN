@@ -72,7 +72,7 @@ class Tetris:
 
         return self.extract_board_features(self.board)
 
-    def step(self, action, render=False):
+    def step(self, action, render=False, video=None):
         """action(x, num_rotations)을 받아서 게임을 진행하고, 보상과 게임 종료 여부를 반환하는 메서드
             보드 상단(x, 0)에서 시작하는 블록이, 보드에 닿을 때까지 떨어지는 것을 구현"""
 
@@ -85,7 +85,7 @@ class Tetris:
         while not self.check_collision(self.piece, self.current_pos):
             self.current_pos["y"] += 1
             if render:
-                self.render()
+                self.render(video)
 
         overflow = self.truncate_overflow_piece(self.piece, self.current_pos)
         if overflow:
@@ -281,6 +281,6 @@ class Tetris:
 
         return GameState(board, piece, x, y, self.score, next_piece)
 
-    def render(self):
+    def render(self, video=None):
         """게임을 렌더링하는 메서드"""
-        self.renderer.render(self.get_render_state())
+        self.renderer.render(self.get_render_state(), video)

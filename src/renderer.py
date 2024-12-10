@@ -56,7 +56,7 @@ class Renderer:
             (scale, scale, 1), dtype=np.uint8))
         return scaled_ndarr
 
-    def render(self, game_state: GameState):
+    def render(self, game_state: GameState, video=None):
         # 보드 배열을 만들고 현재 블록을 추가
         board = self.get_board_ndarray(game_state.board)
 
@@ -77,6 +77,9 @@ class Renderer:
 
         # 점수 추가
         self.draw_header_score(game, game_state.score)
+
+        if video:
+            video.write(game)
 
         cv2.imshow("Tetris with DQN", game)
         cv2.waitKey(1)
@@ -130,7 +133,12 @@ class Renderer:
         # 5x5로 패딩
         padded_piece = np.zeros((5, 5), dtype=int)
         piece_h, piece_w = len(next_piece), len(next_piece[0])
-        padded_piece[1:1+piece_h, 1:1+piece_w] = next_piece
+        if piece_w == 4:
+            padded_piece[1:1+piece_h, 0:piece_w] = next_piece
+        elif piece_w == 2:
+            padded_piece[1:1+piece_h, 2:2+piece_w] = next_piece
+        else:
+            padded_piece[1:1+piece_h, 1:1+piece_w] = next_piece
 
         next_piece = self.get_scaled_RGB_arr(padded_piece)
         return next_piece
