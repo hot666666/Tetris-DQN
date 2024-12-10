@@ -197,7 +197,7 @@ def train(opt, log_dir, run_name):
 
 if __name__ == "__main__":
     opt = get_args()
-    run_name = f"{opt.exp_name}/{opt.num_epochs}_{opt.batch_size}_rm{opt.replay_memory_size}__{int(time.time())}"
+    run_name = f"{opt.exp_name}/{opt.num_epochs}_{opt.batch_size}_{opt.replay_memory_size}__{int(time.time())}"
 
     # TensorBoard 로그 디렉토리 경로 설정
     log_dir = os.path.join("./runs", run_name)
