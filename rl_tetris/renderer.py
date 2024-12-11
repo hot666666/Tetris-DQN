@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from src.game_state import GameState
+from rl_tetris.game_state import GameStates
 
 
 class Renderer:
@@ -56,7 +56,7 @@ class Renderer:
             (scale, scale, 1), dtype=np.uint8))
         return scaled_ndarr
 
-    def render(self, game_state: GameState, video=None):
+    def render(self, game_state: GameStates, video=None):
         # 보드 배열을 만들고 현재 블록을 추가
         board = self.get_board_ndarray(game_state.board)
 
@@ -81,7 +81,7 @@ class Renderer:
         if video:
             video.write(game)
 
-        cv2.imshow("Tetris with DQN", game)
+        cv2.imshow("RL-Tetris", game)
         cv2.waitKey(1)
 
     def draw_header_score(self, game_ndarr, score):
