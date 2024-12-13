@@ -1,1 +1,1 @@
-# Tetris DQN
+# RL-Tetris
