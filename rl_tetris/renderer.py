@@ -60,11 +60,6 @@ class Renderer:
         # 보드 배열을 만들고 현재 블록을 추가
         board = self.get_board_ndarray(game_state.board)
 
-        # 현재 블록 배열과 위치를 보드에 추가
-        piece = self.get_piece_ndarray(game_state.piece)
-        pos = self.get_scaled_piece_pos(piece, game_state.x, game_state.y)
-        self.update_board_with(board, piece, pos)
-
         # 다음 블록 배열
         next_piece = self.get_next_piece_ndarray(game_state.next_piece)
 
@@ -103,6 +98,10 @@ class Renderer:
 
     def get_board_ndarray(self, board):
         board = self.get_scaled_RGB_arr(board)
+
+        # 격자 추가
+        board[[i * self.block_size for i in range(self.height)], :, :] = 0
+        board[:, [i * self.block_size for i in range(self.width)], :] = 0
 
         return board
 
