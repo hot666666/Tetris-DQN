@@ -14,6 +14,7 @@ from rl_tetris.mapping.actions import GameActions
 class Tetris(gym.Env):
     metadata = {
         "render_modes": ["human"],
+        "render_fps": 1
     }
 
     PIECES = [
@@ -57,8 +58,6 @@ class Tetris(gym.Env):
         self.queue = TetrominoQueue(randomizer=randomizer)
         self.renderer = Renderer(height, width, block_size)
 
-        # self.reset()
-
         """
         게임 상태 관련 주요 변수
         - board : 현재 보드 상태
@@ -80,13 +79,38 @@ class Tetris(gym.Env):
                     shape=(self.height, self.width),
                     dtype=np.uint8,
                 ),
+                "piece": Box(
+                    low=0,
+                    high=len(self.PIECES),
+                    shape=(4, 4),
+                    dtype=np.uint8,
+                ),
+                "p_id": Discrete(len(self.PIECES)),
+                "x": Discrete(self.width),
+                "y": Discrete(self.height),
             }
         )
 
+        self.actions = GameActions
         self.action_space = Discrete(len(fields(GameActions)))
         self.reward_range = (-4, 17)
 
         self.render_mode = render_mode
+
+    def get_observation(self):
+        return {
+            "board": [r[:] for r in self.board],
+            "piece": [r[:] for r in self.piece],
+            "p_id": self.idx,
+            "x": self.x,
+            "y": self.y,
+        }
+
+    def get_info(self):
+        return {
+            "score": self.score,
+            "cleared_lines": self.cleared_lines,
+        }
 
     def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[dict, dict]:
         """게임 상태 초기화 후, 초기 상태 특징을 반환하는 메서드"""
@@ -101,8 +125,7 @@ class Tetris(gym.Env):
         self.x, self.y = self.width // 2 - len(self.piece[0]) // 2, 0
         self.gameover = False
 
-        return {"board": self.get_board_with_piece(self.piece, self.x, self.y)}, {"lines_cleared": 0}
-        # return self.extract_board_features(self.board)
+        return self.get_observation(), self.get_info()
 
     def step(self, action: GameActions) -> tuple[dict, int, bool, dict]:
         reward = 0
@@ -133,16 +156,15 @@ class Tetris(gym.Env):
             self.board = self.get_board_with_piece(self.piece, self.x, self.y)
             lines_cleared, self.board = self.clear_full_rows(self.board)
             self.cleared_lines += lines_cleared
-            reward = self.get_reward(lines_cleared)
+            reward = self.get_reward(lines_cleared) - 5
             self.score += reward
 
             return (
-                {"board": self.get_board_with_piece(
-                    self.piece, self.x, self.y)},
+                self.get_observation(),
                 reward,
                 self.gameover,
                 False,  # truncated
-                {"lines_cleared": lines_cleared}
+                self.get_info()
             )
 
         # 게임오버가 아니지만 움직일 수 없는 경우, 다음 테트로미노를 뽑아서 현재 테트로미노로 설정
@@ -156,76 +178,12 @@ class Tetris(gym.Env):
             self.spawn_next_piece()
 
         return (
-            {"board": self.get_board_with_piece(self.piece, self.x, self.y)},
+            self.get_observation(),
             reward,
             self.gameover,
             False,  # truncated
-            {"lines_cleared": lines_cleared}
+            self.get_info()
         )
-
-    # def step(self, action, render=False, video=None):
-    #     """action(x, num_rotations)을 받아서 게임을 진행하고, 보상과 게임 종료 여부를 반환하는 메서드
-    #         보드 상단(x, 0)에서 시작하는 블록이, 보드에 닿을 때까지 떨어지는 것을 구현"""
-
-    #     x, num_rotations = action
-    #     self.current_pos = {"x": x, "y": 0}
-
-    #     for _ in range(num_rotations):
-    #         self.piece = self.get_rotated_piece(self.piece)
-
-    #     while not self.check_collision(self.piece, self.current_pos):
-    #         self.current_pos["y"] += 1
-    #         if render:
-    #             self.render(video)
-
-    #     overflow = self.truncate_overflow_piece(self.piece, self.current_pos)
-    #     if overflow:
-    #         self.gameover = True
-    #         self.score -= 5
-
-    #     self.board = self.get_board_with_piece(self.piece, self.current_pos)
-    #     lines_cleared, self.board = self.clear_full_rows(
-    #         self.board)
-
-    #     reward = self.get_reward(lines_cleared)
-    #     self.score += reward
-    #     self.cleared_lines += lines_cleared
-
-    #     if not self.gameover:
-    #         self.spawn_next_piece()
-
-    #     return reward, self.gameover
-
-    def get_next_states(self):
-        """현재 상태에서 가능한 모든 열(x)에서 가능한 모든 회전(num_rotations)에 대한 다음 상태를 반환하는 메서드
-            states[(x, num_rotations)] -> extract_board_features"""
-
-        states = {}
-
-        curr_piece = [r[:] for r in self.piece]
-        piece_id = self.idx
-
-        if piece_id == 0:
-            num_rotations = 1
-        elif piece_id < 4:
-            num_rotations = 2
-        else:
-            num_rotations = 4
-
-        for i in range(num_rotations):
-            valid_xs = self.width - len(curr_piece[0])
-            for x in range(valid_xs + 1):
-                piece = [r[:] for r in curr_piece]
-                pos = {"x": x, "y": 0}
-                while not self.check_collision(piece, pos):
-                    pos["y"] += 1
-                self.truncate_overflow_piece(piece, pos)
-
-                board = self.get_board_with_piece(piece, pos["x"], pos["y"])
-
-                states[(x, i)] = self.extract_board_features(board)
-            curr_piece = self.get_rotated_piece(curr_piece)
-        return states
 
 ##################################################
 
@@ -260,9 +218,12 @@ class Tetris(gym.Env):
         last_collision_row = -1
         for y in range(len(piece)):
             for x in range(len(piece[y])):
-                if self.board[py + y][px + x] and piece[y][x]:
+                if piece[y][x] == 0:
+                    continue
+                if self.board[py + y][px + x]:
                     if y > last_collision_row:
                         last_collision_row = y
+                        break
 
         if py - (len(piece) - last_collision_row) < 0 and last_collision_row > -1:
             while last_collision_row >= 0 and len(piece) > 1:
@@ -303,15 +264,6 @@ class Tetris(gym.Env):
         return 1 + (lines_cleared ** 2) * self.width
 
 ##################################################
-
-    def extract_board_features(self, board):
-        """현재 보드 상태에 대한 특징(지워진 줄, 구멍, 인접열 차이 합, 높이 합)을 반환하는 메서드"""
-
-        lines_cleared, board = self.clear_full_rows(board)
-        holes = self.get_holes(board)
-        bumpiness, height = self.get_bumpiness_and_height(board)
-
-        return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
 
     def clear_full_rows(self, board):
         """보드에서 꽉 찬 줄을 지우고, 지워진 줄 수와 보드를 반환하는 메서드"""
@@ -365,12 +317,11 @@ class Tetris(gym.Env):
     def get_render_state(self) -> GameStates:
         """랜더링을 위해 현재 게임 상태를 반환하는 메서드"""
 
-        board = [r[:] for r in self.board]
-        piece = [r[:] for r in self.piece]
+        board = self.get_board_with_piece(self.piece, self.x, self.y)
         next_idx = self.queue.peek()
         next_piece = self.PIECES[next_idx]
 
-        return GameStates(board, piece, self.x, self.y, self.score, next_piece)
+        return GameStates(board, self.score, next_piece)
 
     def render(self, video=None):
         """게임을 렌더링하는 메서드"""
