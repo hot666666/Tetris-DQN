@@ -10,8 +10,8 @@ import torch
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
-from src.tetris import Tetris
-from src.dqn import DQN
+from rl_tetris.tetris import Tetris
+from rl_tetris.dqn import DQN
 
 
 def get_args():

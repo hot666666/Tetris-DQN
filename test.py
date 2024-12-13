@@ -4,7 +4,7 @@ import torch
 import cv2
 import time
 
-from src.tetris import Tetris
+from rl_tetris..tetris import Tetris
 
 
 def get_args():
