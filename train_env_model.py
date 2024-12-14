@@ -102,7 +102,7 @@ def train(opt, log_dir, run_name):
                 action = env.action_space.sample(obs["action_mask"])
             else:
                 with torch.no_grad():
-                    q_values = model(valid_features).squeeze(0)
+                    q_values = model(valid_features)[:, 0]
                 index = torch.argmax(q_values).item()
                 action = info["action_mapping"][index]
 
@@ -150,8 +150,8 @@ def train(opt, log_dir, run_name):
         # 다음 상태에서의 q-value를 계산하고, target q-value를 계산
         with torch.no_grad():
             next_q_values = model(next_state_batch)
-            done_batch = torch.tensor(
-                done_batch, dtype=torch.float32).unsqueeze(-1).to(device)
+            done_batch = torch.tensor(done_batch, dtype=torch.float32)[
+                :, None].to(device)
             target_q_values = reward_batch + opt.gamma * \
                 next_q_values * (1 - done_batch)
 
@@ -172,7 +172,7 @@ def train(opt, log_dir, run_name):
 
         # Best model save
         if info["cleared_lines"] > max_cleared_lines:
-            max_cleared_lines = env.cleared_lines
+            max_cleared_lines = info["cleared_lines"]
             model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
             torch.save(model, model_path)
             print(f"Best model saved at {model_path}")
