@@ -9,9 +9,36 @@ class GroupedStepWrapper(gym.Wrapper):
     def __init__(self, env: Tetris, observation_wrapper=None):
         super().__init__(env)
 
-        self.action_space = Discrete((env.unwrapped.width) * 4)
-        self.valid_actions_mask = np.zeros(self.action_space.n, dtype=np.int8)
         self.observation_wrapper = observation_wrapper
+
+        self.action_space = Discrete((env.unwrapped.width) * 4)
+
+        observation_space = {
+            "boards": gym.spaces.Box(
+                low=0,
+                high=len(env.unwrapped.PIECES),
+                shape=(self.action_space.n, env.unwrapped.height,
+                       env.unwrapped.width),
+                dtype=np.uint8,
+            ),
+            "action_mask": gym.spaces.Box(
+                low=0,
+                high=1,
+                shape=(self.action_space.n,),
+                dtype=np.uint8,
+            ),
+        }
+
+        # observation_wrapper가 있는 경우 features 추가
+        if observation_wrapper:
+            observation_space["features"] = gym.spaces.Box(
+                low=0,
+                high=env.unwrapped.height * env.unwrapped.width,
+                shape=(self.action_space.n, 4),
+                dtype=np.uint8,
+            )
+
+        self.observation_space = gym.spaces.Dict(observation_space)
 
     def encode_action(self, x, r):
         return x*4 + r
@@ -22,15 +49,16 @@ class GroupedStepWrapper(gym.Wrapper):
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
 
-        obs = self.observation(obs)
-        self.valid_actions_mask = self.get_valid_actions_mask(obs)
-        info["action_mask"] = self.valid_actions_mask
+        grouped_obs = self.observation(obs)
+        info["board"] = self.env.unwrapped.board
+        info["action_mapping"] = np.where(grouped_obs["action_mask"] == 1)[0]
 
-        return obs, info
+        if wrapper := self.observation_wrapper:
+            grouped_obs["features"] = wrapper.observation(grouped_obs)
+
+        return grouped_obs, info
 
     def step(self, action):
-        assert self.valid_actions_mask[action] == 1, f"Invalid action: {action}"
-
         x, r = self.decode_action(action)
 
         new_piece = [r[:] for r in self.env.unwrapped.piece]
@@ -45,22 +73,24 @@ class GroupedStepWrapper(gym.Wrapper):
         )
 
         grouped_obs = self.observation(obs)
-        self.valid_actions_mask = self.get_valid_actions_mask(
-            grouped_obs)
 
         if wrapper := self.observation_wrapper:
-            grouped_obs = wrapper.observation(grouped_obs)
+            grouped_obs["features"] = wrapper.observation(grouped_obs)
 
-        info["action_mask"] = self.valid_actions_mask
+        info["board"] = obs["board"]
+        info["action_mapping"] = np.where(grouped_obs["action_mask"] == 1)[0]
 
         return grouped_obs, reward, done, truncted, info
 
     def observation(self, observation):
         """현재 상태에서 가능한 모든 열(x)에서 가능한 모든 회전(r)에 대한 다음 상태를 반환하는 메서드"""
 
-        grouped_observations = {}
+        boards = np.zeros((self.action_space.n, self.env.unwrapped.height,
+                          self.env.unwrapped.width), dtype=np.uint8)
+        mask = np.zeros(self.action_space.n, dtype=np.uint8)
 
-        curr_piece = observation["piece"]
+        # TODO: observation에서 현재 피스를 가져오는 방법 구현(padded_board->padded_piece...게임로직 변경)
+        curr_piece = self.env.unwrapped.piece
         piece_id = observation["p_id"]
 
         if piece_id == 0:
@@ -73,6 +103,7 @@ class GroupedStepWrapper(gym.Wrapper):
         for r in range(num_rotations):
             valid_xs = self.env.unwrapped.width - len(curr_piece[0])
             for x in range(valid_xs+1):
+                action = self.encode_action(x, r)
                 piece = [r[:] for r in curr_piece]
                 y = 0
                 while not self.env.unwrapped.check_collision(piece, x, y+1):
@@ -81,15 +112,11 @@ class GroupedStepWrapper(gym.Wrapper):
 
                 board = self.env.unwrapped.get_board_with_piece(piece, x, y)
 
-                grouped_observations[(x, r)] = board
+                boards[action] = np.array(board)
+                mask[action] = 1
             curr_piece = self.env.unwrapped.get_rotated_piece(curr_piece)
-        return grouped_observations
 
-    def get_valid_actions_mask(self, obs):
-        """현재 관찰에서 유효한 액션에 대한 마스크 생성 메서드"""
-
-        mask = np.zeros(self.action_space.n, dtype=np.int8)
-        for (x, r) in obs.keys():
-            action = self.encode_action(x, r)
-            mask[action] = 1
-        return mask
+        return {
+            "boards": boards,
+            "action_mask": mask
+        }
