@@ -90,7 +90,7 @@ def train(opt, log_dir, run_name):
             epoch, opt.initial_epsilon, opt.final_epsilon, opt.num_decay_epochs)
 
         obs, info = env.reset()
-        feature = info["feature"]
+        feature = torch.from_numpy(info["feature"]).float().to(device)
 
         done = False
         while not done:
@@ -106,13 +106,13 @@ def train(opt, log_dir, run_name):
                 index = torch.argmax(q_values).item()
                 action = info["action_mapping"][index]
 
-            next_feature = torch.from_numpy(obs["features"][action]).float()
+            next_feature = torch.from_numpy(
+                obs["features"][action]).float().to(device)
 
             # 환경과 상호작용
             obs, reward, done, _, info = env.step(action)
 
-            # 다음 상태를 device에 배치 후, Replay memory에 저장
-            next_feature = next_feature.to(device)
+            # Replay memory에 저장
             replay_memory.append([feature, reward, next_feature, done])
 
             if not done:
@@ -171,7 +171,7 @@ def train(opt, log_dir, run_name):
         writer.add_scalar("schedule/epsilon", epsilon, epoch)
 
         # Best model save
-        if env.cleared_lines > max_cleared_lines:
+        if info["cleared_lines"] > max_cleared_lines:
             max_cleared_lines = env.cleared_lines
             model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
             torch.save(model, model_path)
