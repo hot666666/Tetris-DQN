@@ -179,7 +179,7 @@ def train(opt, log_dir, run_name):
             continue
 
         # Model save
-        if epoch > opt.num_decay_epochs and epoch % opt.save_interval:
+        if epoch > opt.num_decay_epochs and epoch % opt.save_interval == 0:
             model_path = f"models/{run_name}/tetris_{epoch}"
             torch.save(model, model_path)
             print(f"Model saved at {model_path}")
