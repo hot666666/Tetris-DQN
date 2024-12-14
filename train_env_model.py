@@ -90,7 +90,7 @@ def train(opt, log_dir, run_name):
             epoch, opt.initial_epsilon, opt.final_epsilon, opt.num_decay_epochs)
 
         obs, info = env.reset()
-        feature = torch.from_numpy(info["feature"]).float().to(device)
+        feature = torch.from_numpy(info["initial_feature"]).float().to(device)
 
         done = False
         while not done:

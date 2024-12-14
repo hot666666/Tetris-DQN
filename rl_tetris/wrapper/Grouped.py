@@ -35,7 +35,7 @@ class GroupedStepWrapper(gym.Wrapper):
                 low=0,
                 high=env.unwrapped.height * env.unwrapped.width,
                 shape=(self.action_space.n, 4),
-                dtype=np.uint8,
+                dtype=np.float32,
             )
 
         self.observation_space = gym.spaces.Dict(observation_space)
@@ -50,12 +50,14 @@ class GroupedStepWrapper(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
 
         grouped_obs = self.observation(obs)
+
         info["board"] = obs["board"]
         info["action_mapping"] = np.where(grouped_obs["action_mask"] == 1)[0]
 
         if wrapper := self.observation_wrapper:
             grouped_obs["features"] = wrapper.observation(grouped_obs)
-            info["feature"] = wrapper.extract_board_features(obs["board"])
+            info["initial_feature"] = wrapper.extract_board_features(
+                info["board"])
 
         return grouped_obs, info
 
