@@ -151,7 +151,7 @@ def train(opt, log_dir, run_name):
         with torch.no_grad():
             next_q_values = model(next_state_batch)
             done_batch = torch.tensor(
-                done_batch, dtype=torch.float32).squeeze(0).to(device)
+                done_batch, dtype=torch.float32).unsqueeze(-1).to(device)
             target_q_values = reward_batch + opt.gamma * \
                 next_q_values * (1 - done_batch)
 
