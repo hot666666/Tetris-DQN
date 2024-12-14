@@ -79,12 +79,12 @@ class Tetris(gym.Env):
                     shape=(self.height, self.width),
                     dtype=np.uint8,
                 ),
-                "piece": Box(
-                    low=0,
-                    high=len(self.PIECES),
-                    shape=(4, 4),
-                    dtype=np.uint8,
-                ),
+                # "piece": Box(
+                #     low=0,
+                #     high=len(self.PIECES),
+                #     shape=(4, 4),
+                #     dtype=np.uint8,
+                # ),
                 "p_id": Discrete(len(self.PIECES)),
                 "x": Discrete(self.width),
                 "y": Discrete(self.height),
@@ -99,8 +99,8 @@ class Tetris(gym.Env):
 
     def get_observation(self):
         return {
-            "board": [r[:] for r in self.board],
-            "piece": [r[:] for r in self.piece],
+            "board": np.array(self.board, dtype=np.uint8),
+            # "piece": padded_piece,
             "p_id": self.idx,
             "x": self.x,
             "y": self.y,
@@ -264,6 +264,15 @@ class Tetris(gym.Env):
         return 1 + (lines_cleared ** 2) * self.width
 
 ##################################################
+
+    def clear_full_rows_(self, board: np.ndarray):
+        # np연산으로 전부 0이아닌 줄을 지우고 가장 위에 빈 줄을 추가하는 메서드
+
+        mask = np.all(board != 0, axis=1)
+        board = board[~mask]
+        board = np.concatenate(
+            [np.zeros((self.height - len(board), self.width)), board])
+        return np.sum(mask), board
 
     def clear_full_rows(self, board):
         """보드에서 꽉 찬 줄을 지우고, 지워진 줄 수와 보드를 반환하는 메서드"""
