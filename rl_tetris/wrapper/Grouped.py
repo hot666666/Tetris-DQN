@@ -25,7 +25,7 @@ class GroupedStepWrapper(gym.Wrapper):
                 low=0,
                 high=1,
                 shape=(self.action_space.n,),
-                dtype=np.uint8,
+                dtype=np.int8,
             ),
         }
 
@@ -50,11 +50,12 @@ class GroupedStepWrapper(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
 
         grouped_obs = self.observation(obs)
-        info["board"] = self.env.unwrapped.board
+        info["board"] = obs["board"]
         info["action_mapping"] = np.where(grouped_obs["action_mask"] == 1)[0]
 
         if wrapper := self.observation_wrapper:
             grouped_obs["features"] = wrapper.observation(grouped_obs)
+            info["feature"] = wrapper.extract_board_features(obs["board"])
 
         return grouped_obs, info
 
@@ -87,7 +88,7 @@ class GroupedStepWrapper(gym.Wrapper):
 
         boards = np.zeros((self.action_space.n, self.env.unwrapped.height,
                           self.env.unwrapped.width), dtype=np.uint8)
-        mask = np.zeros(self.action_space.n, dtype=np.uint8)
+        mask = np.zeros(self.action_space.n, dtype=np.int8)
 
         # TODO: observation에서 현재 피스를 가져오는 방법 구현(padded_board->padded_piece...게임로직 변경)
         curr_piece = self.env.unwrapped.piece
