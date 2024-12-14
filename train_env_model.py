@@ -76,7 +76,7 @@ def train(opt, log_dir, run_name):
     loss_fn = F.mse_loss
 
     # Environment
-    env = gym.make("RL-Tetris-v0", render_mode="human")
+    env = gym.make("RL-Tetris-v0", render_mode=None)
     env = GroupedStepWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
@@ -94,13 +94,12 @@ def train(opt, log_dir, run_name):
 
         done = False
         while not done:
-            valid_features = torch.from_numpy(
-                obs["features"][obs["action_mask"] == 1]).float().to(device)
-
             # Epsilon-greedy policy로 행동 선택(Exploration, Expoitation)
             if random() <= epsilon:
                 action = env.action_space.sample(obs["action_mask"])
             else:
+                valid_features = torch.from_numpy(
+                    obs["features"][obs["action_mask"] == 1]).float().to(device)
                 with torch.no_grad():
                     q_values = model(valid_features)[:, 0]
                 index = torch.argmax(q_values).item()
