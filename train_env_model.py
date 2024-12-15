@@ -56,10 +56,8 @@ def epsilon_schedule(epoch, initial_epsilon, final_epsilon, num_decay_epochs):
                             (initial_epsilon - final_epsilon) / num_decay_epochs)
 
 
-def train(opt, log_dir, run_name):
+def train(opt, run_name):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using Device: {device}")
-    print(f"opt: {opt.__dict__}")
 
     # Seed
     if torch.cuda.is_available():
@@ -68,7 +66,7 @@ def train(opt, log_dir, run_name):
         torch.manual_seed(42)
 
     # Tensorboard
-    writer = SummaryWriter(log_dir=log_dir)
+    writer = SummaryWriter(log_dir=os.environ["TENSORBOARD_LOGDIR"])
 
     # Model, Optimizer, Loss function
     model = DQN().to(device)
@@ -83,7 +81,7 @@ def train(opt, log_dir, run_name):
     # Replay memory
     replay_memory = deque(maxlen=opt.replay_memory_size)
 
-    max_cleared_lines = 10
+    max_cleared_lines = 0
     epoch = 0
     while epoch < opt.num_epochs:
         epsilon = epsilon_schedule(
@@ -143,10 +141,8 @@ def train(opt, log_dir, run_name):
         next_state_batch = torch.stack(
             tuple(state for state in next_state_batch)).to(device)
 
-        # 현재 상태에서의 행동에 대한 q-value
+        # q_values, target_q_values 계산
         q_values = model(state_batch)
-
-        # 다음 상태에서의 q-value를 계산하고, target q-value를 계산
         with torch.no_grad():
             next_q_values = model(next_state_batch)
             done_batch = torch.tensor(done_batch, dtype=torch.float32)[
@@ -169,25 +165,27 @@ def train(opt, log_dir, run_name):
                           target_q_values.mean().item(), epoch)
         writer.add_scalar("schedule/epsilon", epsilon, epoch)
 
-        # Best model save
+        # Model save
+        if epoch > opt.num_decay_epochs and epoch % opt.save_interval == 0:
+            max_cleared_lines = max(max_cleared_lines, info["cleared_lines"])
+            model_path = f"models/{run_name}/tetris_{epoch}"
+            torch.save(model, model_path)
+            print(f"Model saved at {model_path}")
+
+        # Most(cleared_lines) model save
         if info["cleared_lines"] > max_cleared_lines:
             max_cleared_lines = info["cleared_lines"]
             model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
             torch.save(model, model_path)
             print(f"Best model saved at {model_path}")
-            continue
-
-        # Model save
-        if epoch > opt.num_decay_epochs and epoch % opt.save_interval == 0:
-            model_path = f"models/{run_name}/tetris_{epoch}"
-            torch.save(model, model_path)
-            print(f"Model saved at {model_path}")
 
     torch.save(model, f"models/{run_name}/tetris")
 
 
 if __name__ == "__main__":
     opt = get_args()
+    print(f"opt: {opt.__dict__}")
+
     run_name = f"{opt.exp_name}/{opt.num_epochs}_{opt.batch_size}_{opt.replay_memory_size}__{int(time.time())}"
 
     # TensorBoard 로그 디렉토리 경로 설정
@@ -210,6 +208,7 @@ if __name__ == "__main__":
             name=run_name,
         )
 
-    train(opt, log_dir, run_name)
+    train(opt, run_name)
+
     if opt.wandb:
         run.finish()

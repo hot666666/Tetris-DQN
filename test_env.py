@@ -28,7 +28,7 @@ while True:
     print()
     print()
 
-    time.sleep(1)
+    # time.sleep(1)
 
     if done:
         env.render()

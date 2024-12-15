@@ -18,7 +18,7 @@ def get_args():
     parser.add_argument("--model_dir", type=str,
                         default=f"models")
     parser.add_argument("--model_name", type=str,
-                        default=f"tetris_best_54088")
+                        default=f"tetris_2481_96439")
 
     args = parser.parse_args()
     return args
@@ -34,7 +34,7 @@ def test(opt):
 
     model = torch.load(model_path, map_location=torch.device("cpu")).eval()
 
-    env = gym.make("RL-Tetris-v0", render_mode="human")
+    env = gym.make("RL-Tetris-v0", render_mode="animate")
     env = GroupedStepWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
@@ -42,7 +42,8 @@ def test(opt):
 
     done = False
     while not done:
-        env.render()
+        if env.render_mode != "animate":
+            env.render()
 
         valid_features = obs["features"][obs["action_mask"] == 1]
         next_features = torch.from_numpy(valid_features).float()
