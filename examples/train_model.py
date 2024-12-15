@@ -8,10 +8,10 @@ import gymnasium as gym
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
-from dqn import DQN
 from rl_tetris.wrapper.Grouped import GroupedStepWrapper
 from rl_tetris.wrapper.Observation import GroupedFeaturesObservation
 
@@ -50,6 +50,31 @@ def get_args():
     return args
 
 
+# DNN 모델
+class DNN(nn.Module):
+    def __init__(self, input_dim=4, hidden_dim=64, output_dim=1):
+        """게임 상태에 대한 휴리스틱한 정보(지워진 줄, 구멍, 인접열 차이 합, 높이 합)를 입력으로 받아서, q-value를 출력하는 DNN 모델"""
+        super(DNN, self).__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+
+        self.model.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        return self.model(x)
+
+
 # 입실론 스케줄 함수
 def epsilon_schedule(epoch, initial_epsilon, final_epsilon, num_decay_epochs):
     return final_epsilon + (max(num_decay_epochs - epoch, 0) *
@@ -69,7 +94,7 @@ def train(opt, run_name):
     writer = SummaryWriter(log_dir=os.environ["TENSORBOARD_LOGDIR"])
 
     # Model, Optimizer, Loss function
-    model = DQN().to(device)
+    model = DNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
     loss_fn = F.mse_loss
 
@@ -169,14 +194,14 @@ def train(opt, run_name):
         if epoch > opt.num_decay_epochs and epoch % opt.save_interval == 0:
             max_cleared_lines = max(max_cleared_lines, info["cleared_lines"])
             model_path = f"models/{run_name}/tetris_{epoch}"
-            torch.save(model, model_path)
+            torch.save(model.state_dict(), model_path)
             print(f"Model saved at {model_path}")
 
         # Most(cleared_lines) model save
         if info["cleared_lines"] > max_cleared_lines:
             max_cleared_lines = info["cleared_lines"]
             model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
-            torch.save(model, model_path)
+            torch.save(model.state_dict(), model_path)
             print(f"Best model saved at {model_path}")
 
     torch.save(model, f"models/{run_name}/tetris")
