@@ -1,21 +1,37 @@
 [tool.poetry]
 name = "rl-tetris"
-version = "0.1.2"
-description = "Tetris Environment for Reinforcement Learning"
+version = "0.2.0"
+description = "Simple Tetris Environment for Reinforcement Learning"
 authors = ["hot666666 <hotcs6@naver.com>"]
+license = "MIT"
 readme = "README.md"
+repository = "https://github.com/hot666666/RL-Tetris"
 packages = [{ include = "rl_tetris" }]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-torch = "^2.5.1"
+python = ">=3.10"
 numpy = "^2.1.3"
 opencv-python = "^4.10.0.84"
 gymnasium = "^1.0.0"
 tensorboardx = "^2.6.2.2"
 
+[tool.poetry.group.examples]
+optional = true
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.examples.dependencies]
+torch = "^2.5.1"
+tensorboardx = "^2.6.2.2"
+wandb = "^0.19.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry-dynamic-versioning]
+enable = true
