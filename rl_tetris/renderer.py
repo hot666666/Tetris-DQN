@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from src.game_state import GameState
+from rl_tetris.game_state import GameStates
 
 
 class Renderer:
@@ -56,14 +56,9 @@ class Renderer:
             (scale, scale, 1), dtype=np.uint8))
         return scaled_ndarr
 
-    def render(self, game_state: GameState):
+    def render(self, game_state: GameStates, video=None):
         # 보드 배열을 만들고 현재 블록을 추가
         board = self.get_board_ndarray(game_state.board)
-
-        # 현재 블록 배열과 위치를 보드에 추가
-        piece = self.get_piece_ndarray(game_state.piece)
-        pos = self.get_scaled_piece_pos(piece, game_state.x, game_state.y)
-        self.update_board_with(board, piece, pos)
 
         # 다음 블록 배열
         next_piece = self.get_next_piece_ndarray(game_state.next_piece)
@@ -78,7 +73,10 @@ class Renderer:
         # 점수 추가
         self.draw_header_score(game, game_state.score)
 
-        cv2.imshow("Tetris with DQN", game)
+        if video:
+            video.write(game)
+
+        cv2.imshow("RL-Tetris", game)
         cv2.waitKey(1)
 
     def draw_header_score(self, game_ndarr, score):
@@ -100,6 +98,10 @@ class Renderer:
 
     def get_board_ndarray(self, board):
         board = self.get_scaled_RGB_arr(board)
+
+        # 격자 추가
+        board[[i * self.block_size for i in range(self.height)], :, :] = 0
+        board[:, [i * self.block_size for i in range(self.width)], :] = 0
 
         return board
 
@@ -130,7 +132,12 @@ class Renderer:
         # 5x5로 패딩
         padded_piece = np.zeros((5, 5), dtype=int)
         piece_h, piece_w = len(next_piece), len(next_piece[0])
-        padded_piece[1:1+piece_h, 1:1+piece_w] = next_piece
+        if piece_w == 4:
+            padded_piece[1:1+piece_h, 0:piece_w] = next_piece
+        elif piece_w == 2:
+            padded_piece[1:1+piece_h, 2:2+piece_w] = next_piece
+        else:
+            padded_piece[1:1+piece_h, 1:1+piece_w] = next_piece
 
         next_piece = self.get_scaled_RGB_arr(padded_piece)
         return next_piece

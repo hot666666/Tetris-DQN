@@ -1,5 +1,5 @@
 from collections import deque
-from src.randomizer import BagRandomizer
+from rl_tetris.randomizer import BagRandomizer
 
 
 class TetrominoQueue:

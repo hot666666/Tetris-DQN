@@ -165,7 +165,7 @@ cython_debug/
 models/
 
 # log
-tensorboard/
+runs/
 
 # output
-output.mp4
+output*.mp4
