@@ -13,7 +13,7 @@ from rl_tetris.mapping.actions import GameActions
 
 class Tetris(gym.Env):
     metadata = {
-        "render_modes": ["human"],
+        "render_modes": ["human", "animate"],
         "render_fps": 1
     }
 
@@ -48,7 +48,7 @@ class Tetris(gym.Env):
 
     def __init__(
             self,
-            render_mode="human",
+            render_mode=None,
             height=20,
             width=10,
             block_size=30,
@@ -147,6 +147,8 @@ class Tetris(gym.Env):
                 self.piece = rotated_piece
         elif action == GameActions.hard_drop:
             while not self.check_collision(self.piece, self.x, self.y + 1):
+                if self.render_mode == "animate":
+                    self.render()
                 self.y += 1
 
         # 현재 piece가 보드 상단을 벗어나는 경우 = 게임오버
@@ -170,7 +172,12 @@ class Tetris(gym.Env):
         # 게임오버가 아니지만 움직일 수 없는 경우, 다음 테트로미노를 뽑아서 현재 테트로미노로 설정
         if self.check_collision(self.piece, self.x, self.y + 1):
             self.board = self.get_board_with_piece(self.piece, self.x, self.y)
+
+            if self.render_mode == "animate":
+                self.render()
+
             lines_cleared, self.board = self.clear_full_rows(self.board)
+
             self.cleared_lines += lines_cleared
             reward = self.get_reward(lines_cleared)
             self.score += reward
@@ -332,6 +339,6 @@ class Tetris(gym.Env):
 
         return GameStates(board, self.score, next_piece)
 
-    def render(self, video=None):
+    def render(self):
         """게임을 렌더링하는 메서드"""
-        self.renderer.render(self.get_render_state(), video)
+        self.renderer.render(self.get_render_state())
