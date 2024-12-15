@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete
 
