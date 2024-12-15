@@ -10,6 +10,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Show Git tags
+        run: |
+          git tag  # 태그 정보를 출력하여 확인
+          git describe --tags
 
       - name: Set up Python
         uses: actions/setup-python@v4
