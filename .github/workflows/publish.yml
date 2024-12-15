@@ -13,11 +13,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Show Git tags
-        run: |
-          git tag  # 태그 정보를 출력하여 확인
-          git describe --tags
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -27,6 +22,13 @@ jobs:
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Set version from release tag
+        run: |
+          TAG_NAME=${{ github.event.release.tag_name }}
+          echo "Release tag: $TAG_NAME"
+          poetry version ${TAG_NAME#v}  # 'v' 접두사를 제거하고 버전 설정
+          cat pyproject.toml  # 확인용
 
       - name: Install dependencies
         run: |
