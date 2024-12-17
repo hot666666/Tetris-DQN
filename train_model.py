@@ -12,6 +12,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
+from rl_tetris.randomizer import RandRandomizer
+from rl_tetris.tetromino_queue import TetrominoQueue
 from rl_tetris.wrapper.Grouped import GroupedStepWrapper
 from rl_tetris.wrapper.Observation import GroupedFeaturesObservation
 
@@ -99,7 +101,8 @@ def train(opt, run_name):
     loss_fn = F.mse_loss
 
     # Environment
-    env = gym.make("RL-Tetris-v0", render_mode=None)
+    env = gym.make(
+        "RL-Tetris-v0", queue=TetrominoQueue(randomizer=RandRandomizer()), render_mode=None)
     env = GroupedStepWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
