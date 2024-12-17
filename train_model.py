@@ -102,7 +102,7 @@ def train(opt, run_name):
 
     # Environment
     env = gym.make(
-        "RL-Tetris-v0", queue=TetrominoQueue(randomizer=RandRandomizer()), render_mode=None)
+        "RL-Tetris-v0", randomizer=RandRandomizer(), render_mode=None)
     env = GroupedStepWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
