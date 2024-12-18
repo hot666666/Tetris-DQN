@@ -52,7 +52,7 @@ def get_args():
                         default=os.path.basename(__file__)[: -len(".py")])
 
     # 모델 저장(time-step 단위)
-    parser.add_argument("--save_interval", type=int, default=1000)
+    parser.add_argument("--save_model_interval", type=int, default=1000)
 
     args = parser.parse_args()
     return args
@@ -231,14 +231,14 @@ def train(opt, run_name):
 
         # Model save
         if global_step > exploration_steps and global_step % opt.save_model_interval == 0:
-            max_cleared_lines = max(max_cleared_lines, info["cleared_lines"])
+            max_cleared_lines = max(max_cleared_lines, int(avg_cleared_lines))
             model_path = f"models/{run_name}/tetris_{global_step}"
             torch.save(model.state_dict(), model_path)
             print(f"Model saved at {model_path}")
 
         # Most(cleared_lines) model save
-        if info["cleared_lines"] > max_cleared_lines:
-            max_cleared_lines = info["cleared_lines"]
+        if int(avg_cleared_lines) > max_cleared_lines:
+            max_cleared_lines = avg_cleared_lines
             model_path = f"models/{run_name}/tetris_{global_step}_{max_cleared_lines}"
             torch.save(model.state_dict(), model_path)
             print(f"Best model saved at {model_path}")
