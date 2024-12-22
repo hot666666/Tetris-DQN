@@ -59,7 +59,7 @@ class DNN(nn.Module):
         super(DNN, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+            nn.Linear(input_dim, 128),
             nn.ReLU(),
             nn.Linear(128, hidden_dim),
             nn.ReLU(),
