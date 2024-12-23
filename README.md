@@ -2,6 +2,8 @@
 
 # RL-Tetris
 
+![demo](demo.gif)
+
 **RL-Tetris**는 강화학습을 위해 Gymnasium 인터페이스를 기반으로 구현된 테트리스 게임 환경입니다.
 
 [Gymnasium](https://gymnasium.farama.org/index.html)은 OpenAI가 개발한 강화학습 연구를 위한 표준화된 환경 라이브러리로, 간단한 인터페이스를 통해 환경을 초기화하고 에이전트의 행동과 보상을 확인할 수 있어 연구와 실험에 널리 활용됩니다.
@@ -56,7 +58,7 @@ env = gym.make("RL-Tetris-v0", render_mode="human")
 ```
 
 - `human`: 게임 화면을 렌더링합니다.
-- `animate`: 추가로 Hard Drop 애니메이션이 렌더링됩니다.
+- `animate`: human에서 추가적으로 Hard Drop 애니메이션이 렌더링됩니다.
 - `None`: 게임 화면을 렌더링하지 않습니다.
 
 ### GroupedWrapper
