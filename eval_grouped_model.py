@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 import gymnasium as gym
 
-from rl_tetris.wrapper.Grouped import GroupedStepWrapper
+from rl_tetris.randomizer import BagRandomizer
+from rl_tetris.wrapper.Grouped import GroupedWrapper
 from rl_tetris.wrapper.Observation import GroupedFeaturesObservation
 
 
@@ -19,7 +20,7 @@ def get_args():
     parser.add_argument("--model_dir", type=str,
                         default=f"models")
     parser.add_argument("--model_name", type=str,
-                        default=f"tetris_2481_96439")
+                        default=f"tetris_4013_2194")
 
     args = parser.parse_args()
     return args
@@ -60,11 +61,13 @@ def test(opt):
 
     # 모델 불러오기
     model = DNN()
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(
+        model_path, map_location=torch.device("cpu")))
     model.eval()
 
-    env = gym.make("RL-Tetris-v0", render_mode="animate")
-    env = GroupedStepWrapper(
+    env = gym.make("RL-Tetris-v0", randomizer=BagRandomizer(),
+                   render_mode="animate")
+    env = GroupedWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
     obs, info = env.reset()

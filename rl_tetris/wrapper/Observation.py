@@ -4,6 +4,15 @@ import numpy as np
 from rl_tetris.envs.tetris import Tetris
 
 
+class BoardObservation(gym.ObservationWrapper):
+    def __init__(self, env: Tetris):
+        super().__init__(env)
+
+    def observation(self, observation):
+        # TODO: piece가 회전에도 고정 observation에 맞도록, n*n 크기로 바꾸기 -> board에 piece를 합쳐서 반환
+        return observation["boards"]
+
+
 class GroupedFeaturesObservation(gym.ObservationWrapper):
     def __init__(self, env: Tetris):
         super().__init__(env)

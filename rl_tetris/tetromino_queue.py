@@ -1,5 +1,5 @@
 from collections import deque
-from rl_tetris.randomizer import BagRandomizer
+from rl_tetris.randomizer import BagRandomizer, RandRandomizer
 
 
 class TetrominoQueue:
@@ -12,7 +12,7 @@ class TetrominoQueue:
 
     def __init__(self, randomizer, size=1):
         self.size = size
-        self.randomizer = randomizer or BagRandomizer()
+        self.randomizer = randomizer or RandRandomizer()
         self.queue = deque([], maxlen=size)
 
     def pop(self) -> int:

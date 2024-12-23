@@ -5,7 +5,7 @@ import numpy as np
 from rl_tetris.envs.tetris import Tetris
 
 
-class GroupedStepWrapper(gym.Wrapper):
+class GroupedWrapper(gym.Wrapper):
     def __init__(self, env: Tetris, observation_wrapper=None):
         super().__init__(env)
 
