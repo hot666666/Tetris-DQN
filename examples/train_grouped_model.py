@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
-from rl_tetris.wrapper.Grouped import GroupedStepWrapper
+from rl_tetris.wrapper.Grouped import GroupedWrapper
 from rl_tetris.wrapper.Observation import GroupedFeaturesObservation
 
 
@@ -100,7 +100,7 @@ def train(opt, run_name):
 
     # Environment
     env = gym.make("RL-Tetris-v0", render_mode=None)
-    env = GroupedStepWrapper(
+    env = GroupedWrapper(
         env, observation_wrapper=GroupedFeaturesObservation(env))
 
     # Replay memory
@@ -142,12 +142,20 @@ def train(opt, run_name):
             else:
                 print(
                     f'# Epoch: {epoch}, Score: {info["score"]}, Cleared lines: {info["cleared_lines"]}')
+
                 if epoch > 0:
                     writer.add_scalar("epoch/score", info["score"], epoch)
                     writer.add_scalar("epoch/cleared_lines",
                                       info["cleared_lines"], epoch)
                     writer.add_scalar("epoch/memory_size",
                                       len(replay_memory), epoch)
+
+                # Most(cleared_lines) model save
+                if info["cleared_lines"] > max_cleared_lines:
+                    max_cleared_lines = info["cleared_lines"]
+                    model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
+                    torch.save(model.state_dict(), model_path)
+                    print(f"Best model saved at {model_path}")
 
         # Replay memory가 충분히 쌓여야 학습 시작
         if len(replay_memory) < opt.replay_memory_size // 10:
@@ -196,13 +204,6 @@ def train(opt, run_name):
             model_path = f"models/{run_name}/tetris_{epoch}"
             torch.save(model.state_dict(), model_path)
             print(f"Model saved at {model_path}")
-
-        # Most(cleared_lines) model save
-        if info["cleared_lines"] > max_cleared_lines:
-            max_cleared_lines = info["cleared_lines"]
-            model_path = f"models/{run_name}/tetris_{epoch}_{max_cleared_lines}"
-            torch.save(model.state_dict(), model_path)
-            print(f"Best model saved at {model_path}")
 
     torch.save(model, f"models/{run_name}/tetris")
 
